@@ -15,8 +15,7 @@ use App\Exceptions\SessionException;
  * a non-empty and a valid cookie a valid, an active, not hijacked, not expired
  * 
  * * Session cookie: non-empty and valid
- * * Session data: valid, active, not hijacked, not expired and not obsolete 
- * (only GET requests are allowed during the transition phase)
+ * * Session data: valid, active, not obsolete, not expired and not hijacked
  * 
  * Thus, this middleware requires a dedicated controller whose role would be
  * to create, on successful login, valid sessions including this data:
@@ -39,8 +38,9 @@ class SessionMiddleware extends SessionWrapper
         try {
             return $this->handleSession($request, $next);
         } catch (SessionException $e) {
-            view('login', ['error' => $e->getCode() . ' ' . $e->getMessage(),])
-            ->send();
+            view('login', [
+                'error' => $e->getCode() . ' ' . $e->getMessage(),
+            ])->sendResponse();
         }
     }
 
@@ -59,16 +59,16 @@ class SessionMiddleware extends SessionWrapper
         // In case Obsolete
         if ($this->returnTrueIfSessionIsObsolete()) {
             // Since auth is false in the obsolete state, only get requests are accepted
-            return $this->preventFromHijacking($request, $next);
+            return self::preventSessionHijacking($request, $next);
         }
         // In case Expired
         if ($this->returnTrueIfSessionIsExpired()) {
             $this->refreshSession();
-            return $this->preventFromHijacking($request, $next);
+            return self::preventSessionHijacking($request, $next);
         }
         // Normal flow
         $_SESSION['last_activity'] = time();
-        return $this->preventFromHijacking($request, $next);
+        return self::preventSessionHijacking($request, $next);
     }
 
     protected function returnTrueIfSessionIsNotValid(): bool
@@ -84,8 +84,8 @@ class SessionMiddleware extends SessionWrapper
 
     protected function returnTrueIfSessionIsExpired(): bool
     {
-        return $_SESSION['last_activity'] <= time() - $_ENV['DYNAMIC_LIFETIME']
-            || time() - $_SESSION['created_at'] > $_ENV['STATIC_LIFETIME'];
+        return $_SESSION['last_activity'] <= time() - $_ENV['DYNAMIC_LIFETIME'] * 3600
+            || time() - $_SESSION['created_at'] > $_ENV['STATIC_LIFETIME'] * 3600;
     }
 
     protected function returnTrueIfSessionIsObsolete(): bool
@@ -93,7 +93,7 @@ class SessionMiddleware extends SessionWrapper
         return $_SESSION['obsolete'] === true;
     }
 
-    protected function preventFromHijacking(Request $request, \Closure $next)
+    protected static function preventSessionHijacking(Request $request, \Closure $next)
     {
         if ($_SESSION['ip_address'] === $_SERVER['REMOTE_ADDR']
             && $_SESSION['user_agent'] === $_SERVER['HTTP_USER_AGENT']

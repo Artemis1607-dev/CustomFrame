@@ -20,8 +20,8 @@
     </style>
 </head>
 <body>
-    @include('components/header.blade.php')
+    @include('components/foo.blade.php')
     @yield('content')
-    @include('components/footer.blade.php')
+    @include('components/bar.blade.php')
 </body>
 </html>

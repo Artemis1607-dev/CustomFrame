@@ -61,10 +61,10 @@ class Request
     {
         // Retreive and normalize
         $method = strtolower($_SERVER['REQUEST_METHOD']);
-        if (!empty($method)) {
-            return $method;
+        if (empty($method)) {
+            throw new \RuntimeException('Method not found', 400);
         }
-        throw new \RuntimeException('Method not found', 400);
+        return $method;
     }
 
     /**
@@ -76,28 +76,28 @@ class Request
     protected static function getUrl(): string
     {
         // Retrieve
-        $raw_url = (empty($_SERVER['HTTPS'])
+        $raw_url = (($_ENV['PRODUCTION'] ?? true) === false
             ? 'http://'
             : 'https://')
             . $_SERVER['SERVER_NAME']
             . $_SERVER['REQUEST_URI'];
-        // Validate
-        if (filter_var(
+        // Normalize
+        $normalized_url = strtolower(trim($raw_url, ' /'));
+        // Validate (checks the whole url)
+        if (!filter_var(
             $raw_url,
             FILTER_VALIDATE_URL,
             FILTER_FLAG_PATH_REQUIRED
         )) {
-            // Normalize
-            $normalized_url = strtolower(trim($raw_url, '/')); 
-            // Sanitize
-            $parsed_url = parse_url($normalized_url, PHP_URL_PATH);
-            $url = preg_replace('~[^\w/]+~', '', $parsed_url);
-            if ($url === '') {
-                return $url = '/';
-            }
-            return preg_replace('~/{2,}~', '/', $url);
+            throw new \RuntimeException('URL not valid', 400);
         }
-        throw new \RuntimeException('URL not valid', 400);
+        // Sanitize (allow only single slashes, a-z, A-Z and 0-9)
+        $parsed_url = parse_url($normalized_url, PHP_URL_PATH);
+        $url = preg_replace('~[^\w/]+~', '', $parsed_url);
+        if ($url === '') {
+            return $url = '/';
+        }
+        return preg_replace('~/{2,}~', '/', $url);
     }
 
     /**
@@ -118,12 +118,16 @@ class Request
             case 'patch':
             case 'put':
             case 'delete':
-                $body = json_decode(file_get_contents('php://input'), true);
+                $json = file_get_contents('php://input');
+                if ($json === null) {
+                    throw new \RuntimeException('Failed to decode the body', 400);
+                }
+                $body = json_decode($json, true);
                 break;
             default:
                 throw new \RuntimeException('Method not supported', 400);
         }
-        return $body ?? [];
+        return is_array($body) ? $body : [];
     }
 
     /**

@@ -11,14 +11,6 @@ function routes(): array
 }
 
 /** 
- * Loads an array with the defined database configuration. 
- */
-function database(): array
-{
-    return require_once __DIR__ ."/../config/database.php";
-}
-
-/** 
  * Checks whether the provided class and its method are valid.
  */
 function validate(string $class, string $method): bool
@@ -32,8 +24,24 @@ function validate(string $class, string $method): bool
     return true;
 }
 
-function view(string $view, array $data = [], $extension = false): Response
+function view(
+    string $view,
+    array $data = []
+): Response {
+    return Response::prepareView($view, $data);
+}
+
+function json(array $json): Response 
 {
-    $extension === false ?: $view .= '.blade.php';
-    return Response::view($view, $data);
+    return Response::prepareJson($json);
+}
+
+function fileResponse(string $path): Response 
+{
+    return Response::prepareFile($path);
+}
+
+function redirect(string $url): Response 
+{
+    return Response::redirect($url);
 }

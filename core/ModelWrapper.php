@@ -18,14 +18,20 @@ class ModelWrapper
     public static \mysqli $instance;
 
     public function __construct(
-        $hostname,
-        $username,
-        $password,
-        $database
+        string $hostname,
+        string $username,
+        string $password,
+        string $database
     ) {
-        self::$instance = new \mysqli($hostname, $username, $password, $database);
-        if (self::$instance->connect_error) {
-            throw new \LogicException('Failed database connection', 424);
+        if (!empty($hostname)
+            && !empty($username)
+            && !empty($password)
+            && !empty($database)
+        ) {
+            self::$instance = new \mysqli($hostname, $username, $password, $database);
+            if (self::$instance->connect_error) {
+                throw new \LogicException('Failed to connect to the database', 424);
+            }
         }
     }
-} 
+}

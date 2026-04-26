@@ -9,8 +9,6 @@ namespace Core;
  * that instruct the Router on how to respond to a request.
  * 
  * @see /config/routes.php
- * 
- * 
  */
 class Route
 {
@@ -79,7 +77,7 @@ class Route
      */
     public static function get(string $url, array|callable $controller): self
     {
-        return self::createRoute($url, $controller, 'get');
+        return self::setRoute($url, $controller, 'get');
     }
 
     /**
@@ -87,7 +85,7 @@ class Route
      */
     public static function post(string $url, array|callable $controller): self
     {
-        return self::createRoute($url, $controller, 'post');
+        return self::setRoute($url, $controller, 'post');
     }
 
     /**
@@ -95,7 +93,7 @@ class Route
      */
     public static function patch(string $url, array|callable $controller): self
     {
-        return self::createRoute($url, $controller, 'patch');
+        return self::setRoute($url, $controller, 'patch');
     }
 
     /**
@@ -103,7 +101,7 @@ class Route
      */
     public static function put(string $url, array|callable $controller): self
     {
-        return self::createRoute($url, $controller, 'put');
+        return self::setRoute($url, $controller, 'put');
     }
 
     /**
@@ -111,7 +109,7 @@ class Route
      */
     public static function delete(string $url, array|callable $controller): self
     {
-        return self::createRoute($url, $controller, 'delete');
+        return self::setRoute($url, $controller, 'delete');
     }
     
     /**
@@ -120,7 +118,7 @@ class Route
     public function middleware(string ...$middlewares): self
     {
         foreach ($middlewares as $middleware) {
-            $this->processMiddleware($middleware);
+            $this->setMiddleware($middleware);
         }
         // Pursue the chaining
         return $this;
@@ -138,41 +136,17 @@ class Route
             }
             // Apprend associated middlewares to the route
             foreach ($this->groups[$name] as $middleware) {
-                $this->processMiddleware($middleware);
+                $this->setMiddleware($middleware);
             }
         }
         // Pursue the chaining
         return $this;
     }
 
-    protected function processMiddleware(string $middleware): void
-    {
-        // Identify middleware parameters
-        if (preg_match('~([\a-zA-Z]+):([\w,]+)~', $middleware, $matches)) {
-            $class = $matches['1'];
-            $parameters = explode(',', $matches['2']);
-            $this->validateMiddleware($class, $parameters);
-        } else {
-            $this->validateMiddleware($middleware);
-        }
-    }
-
-    protected function validateMiddleware(string $middleware, array $parameters = []): void
-    {
-        // Check whether the current class is valid
-        if (!validate($middleware, 'filter')) {
-            throw new \LogicException($middleware . '->filter() not found', 500);
-        }
-        // Prevent duplicates
-        if (!isset($this->middlewares[$middleware])) {
-            $this->middlewares[$middleware] = $parameters;
-        }
-    }
-
     /**
      * Helper function which creates a route.
      */
-    protected static function createRoute(
+    protected static function setRoute(
         string $url,
         array|callable $controller,
         string $method
@@ -190,6 +164,30 @@ class Route
         } else {
             // Create a route with an anonymous controller
             return new self($method, $url, $controller, '');
+        }
+    }
+
+    protected function setMiddleware(string $middleware): void
+    {
+        // Identify middleware parameters
+        if (preg_match('~([\\\\a-zA-Z]+):([\w,]+)~', $middleware, $matches)) {
+            $class = $matches['1'];
+            $attributes = explode(',', $matches['2']);
+            $this->processMiddleware($class, $attributes);
+        } else {
+            $this->processMiddleware($middleware);
+        }
+    }
+
+    protected function processMiddleware(string $middleware, array $attributes = []): void
+    {
+        // Check whether the current class is valid
+        if (!validate($middleware, 'filter')) {
+            throw new \LogicException($middleware . '->filter() not found', 500);
+        }
+        // Prevent duplicates
+        if (!isset($this->middlewares[$middleware])) {
+            $this->middlewares[$middleware] = $attributes;
         }
     }
 }
