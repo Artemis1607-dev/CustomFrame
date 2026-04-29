@@ -24,14 +24,14 @@ class AuthMiddleware extends SessionWrapper
     {
         // Role checking
         if ($_SESSION['role'] !== $role) {
-            throw new SessionException('Forbidden', 403);
+            throw new SessionException('Unsuficient permissions', 403);
         }
         // Mark the session as Unauthorized
         if ($_SESSION['auth'] === false) {
             if (in_array($request->method, ['get'])) {
                 $request->attributes['auth'] = false;
             } else {
-                throw new SessionException('Re-authenticate');
+                throw new SessionException('Re-authentication required', 403);
             }
         } elseif ($_SESSION['auth_until'] < time()) {
             $_SESSION['auth'] = false;

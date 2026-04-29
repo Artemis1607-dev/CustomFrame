@@ -70,7 +70,7 @@ class Router
             }
         }
         // In case requested url doesn't exist
-        throw new \RuntimeException('Not found', 404);
+        throw new \RuntimeException('Resource not found', 404);
     }
     
     /**

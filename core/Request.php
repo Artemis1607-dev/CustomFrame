@@ -62,7 +62,7 @@ class Request
         // Retreive and normalize
         $method = strtolower($_SERVER['REQUEST_METHOD']);
         if (empty($method)) {
-            throw new \RuntimeException('Method not found', 400);
+            throw new \RuntimeException('Invalid request method', 400);
         }
         return $method;
     }
@@ -89,7 +89,7 @@ class Request
             FILTER_VALIDATE_URL,
             FILTER_FLAG_PATH_REQUIRED
         )) {
-            throw new \RuntimeException('URL not valid', 400);
+            throw new \RuntimeException('Invalid request URL', 400);
         }
         // Sanitize (allow only single slashes, a-z, A-Z and 0-9)
         $parsed_url = parse_url($normalized_url, PHP_URL_PATH);
@@ -120,12 +120,12 @@ class Request
             case 'delete':
                 $json = file_get_contents('php://input');
                 if ($json === null) {
-                    throw new \RuntimeException('Failed to decode the body', 400);
+                    throw new \JsonException('Invalid request body', 400);
                 }
                 $body = json_decode($json, true);
                 break;
             default:
-                throw new \RuntimeException('Method not supported', 400);
+                throw new \RuntimeException('Unsupported request method', 500);
         }
         return is_array($body) ? $body : [];
     }

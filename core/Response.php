@@ -56,11 +56,11 @@ class Response
      */
     public static function prepareJson(
         array $json_decoded,
-        int $status = 200
+        int $status = 100
     ): self {
         $json_encoded = json_encode($json_decoded);
         if ($json_encoded === false) {
-            throw new \RuntimeException('Failed to encode the body');
+            throw new \JsonException('Invalid response body', 500);
         }
         $response = new self(json_encode($json_encoded), $status);
         return $response
@@ -75,10 +75,10 @@ class Response
      */
     public static function prepareFile(
         string $relative_path,
-        int $status = 200
+        int $status = 100
     ): self {
         if (!file_exists($relative_path)) {
-            throw new \LogicException('File not found', 204);
+            throw new \RuntimeException('File not found', 500);
         }
         $response = new self(file_get_contents($relative_path), $status);
         return $response
@@ -89,7 +89,7 @@ class Response
     /**
      * Prepares a redirect response to the client.
      */
-    public static function redirect(string $url, int $status = 303): self
+    public static function redirect(string $url, int $status): self
     {
         $response = new self('', $status);
         return $response->setHeader('Location', $url);

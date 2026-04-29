@@ -30,7 +30,7 @@ class ModelWrapper
         ) {
             self::$instance = new \mysqli($hostname, $username, $password, $database);
             if (self::$instance->connect_error) {
-                throw new \LogicException('Failed to connect to the database', 424);
+                throw new \PDOException('Database temporarly unavailable', 500);
             }
         }
     }
