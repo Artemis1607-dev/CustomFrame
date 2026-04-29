@@ -132,7 +132,7 @@ class Route
         foreach ($group as $name) {
             // Check whether the group exists
             if(!isset($this->groups[$name])) {
-                throw new \LogicException("$name middleware group not found", 500);
+                throw new \InvalidArgumentException("\"$name\" not found", 500);
             }
             // Apprend associated middlewares to the route
             foreach ($this->groups[$name] as $middleware) {
@@ -154,8 +154,8 @@ class Route
         if (is_array($controller)) {
             // Check whether the current class is valid
             if (!validate(key($controller), current($controller))) {
-                throw new \LogicException(
-                    key($controller) . '->' . current($controller) . '() not found',
+                throw new \InvalidArgumentException(
+                    '"'. key($controller) . '->' . current($controller) . '()" not found',
                     500
                 );
             }
@@ -183,7 +183,10 @@ class Route
     {
         // Check whether the current class is valid
         if (!validate($middleware, 'filter')) {
-            throw new \LogicException($middleware . '->filter() not found', 500);
+            throw new \InvalidArgumentException(
+                '"'. $middleware . '->filter()" not found',
+                500
+            );
         }
         // Prevent duplicates
         if (!isset($this->middlewares[$middleware])) {

@@ -103,11 +103,11 @@ class Kernel
         ];
         foreach ($valid_parameters as $parameter => $options) {
             if(!isset($config[$parameter]) || !is_array($config[$parameter])) {
-                throw new \LogicException("Invalid parameter \"$parameter\" was detected");
+                throw new \InvalidArgumentException("Invalid argument \"$parameter\"", 500);
             }
             foreach ($options as $option) {
                 if (!isset($config[$parameter][$option])) {
-                    throw new \LogicException("Invalid option \"$option\" was detected");
+                    throw new \InvalidArgumentException("Invalid argument \"$option\"", 500);
                 }
             }
         }

@@ -49,12 +49,12 @@ class SessionMiddleware extends SessionWrapper
         $this->start($this->config);
         // In case not Valid
         if ($this->returnTrueIfSessionIsNotValid()) {
-            throw new SessionException('Session is invalid');
+            throw new SessionException('Re-authentication required', 401);
         }
         // In case not Active
         if ($this->returnTrueIfSessionIsNotActive()) {
             $this->finishSession();
-            throw new SessionException('Session is inactive');
+            throw new SessionException('Re-authentication required', 403);
         }
         // In case Obsolete
         if ($this->returnTrueIfSessionIsObsolete()) {
