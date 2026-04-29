@@ -48,7 +48,7 @@ class Router
                 $route->method === $request->method
                 && $route->url === $request->url
             ) {
-                return $this->processRoute($request, $route); // todo DRY
+                return $this->processRoute($request, $route);
             } else {
                 // Identify the route type
                 if (preg_match('~\{[^/]+\}~', $route->url)) {
@@ -130,7 +130,7 @@ class Router
         Route $route
     ): Response {
         // Use a defined controller
-        if (is_string($route->controller)) { // todo DRY
+        if (is_string($route->controller)) {
             // Render the corresponding view
             $controller = new ($route->controller)();
             $action = $route->action;

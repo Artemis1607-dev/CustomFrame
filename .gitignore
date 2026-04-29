@@ -2,4 +2,3 @@ vendor/
 .env
 .vscode/
 composer.lock
-storage/views/*
