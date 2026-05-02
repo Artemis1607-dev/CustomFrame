@@ -1,13 +1,15 @@
 <?php
 
 /**
- * Defines the application's routes.
+ * This file holds the application's routes.
  * 
- * This array is then required by a helper function 
- * to Router for the validation of the request.
+ * Note that the following array is then required by
+ * Core\Router for the request URL validation. Be free
+ * to check Core\Route to find out on the available
+ * route features.
  * 
- * @see /boot/helpers.php
- * @see \Core\Router
+ * @see Core\Router
+ * @see Core\Route
  */
 
 use App\Controllers\Controller;

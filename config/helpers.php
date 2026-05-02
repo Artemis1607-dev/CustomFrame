@@ -1,18 +1,19 @@
 <?php 
 
+/**
+ * This file regroups helper function which have to
+ * be available accross the whole codebase.
+ */
+
 use Core\Response;
 
-/** 
- * Loads an array with the defined routes. 
- */
+/** Loads an array with the defined routes. */
 function routes(): array
 {
     return require_once __DIR__ . "/../config/routes.php";
 }
 
-/** 
- * Checks whether the provided class and its method are valid.
- */
+/** Validates a class and its method. */
 function validate(string $class, string $method): bool
 {
     if (
@@ -24,24 +25,26 @@ function validate(string $class, string $method): bool
     return true;
 }
 
-function view(
-    string $view,
-    array $data = []
-): Response {
+/** Provides a shortcut for the view response. */
+function view(string $view, array $data = []): Response
+{
     return Response::prepareView($view, $data);
 }
 
+/** Provides a shortcut for the json response. */
 function json(array $json): Response 
 {
     return Response::prepareJson($json);
 }
 
-function fileResponse(string $path): Response 
+/** Provides a shortcut for the file response. */
+function prepareFile(string $path): Response 
 {
     return Response::prepareFile($path);
 }
 
+/** Provides a shortcut for the redirect response. */
 function redirect(string $url): Response 
 {
-    return Response::redirect($url);
+    return Response::prepareRedirect($url);
 }

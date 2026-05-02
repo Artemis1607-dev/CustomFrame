@@ -14,9 +14,16 @@ namespace Core;
  */
 class Response
 {
+    /** Holds the response body. */
     protected string $body;
+
+    /** Holds the response status. */
     protected int $status;
+
+    /** Holds the response headers. */
     protected array $headers = [];
+
+    /** Holds the response cookies. */
     protected array $cookies = [];
     
     /**
@@ -24,7 +31,7 @@ class Response
      * 
      * Additionally, this method can directly be used in a controller,
      * enabling sending custom responses. For instance, once an AJAX
-     * text content is requested, a controller has to specify
+     * text content is requested, a controller has to specify the following 
      * new Response($content, $status) and send necessary headers or cookies.
      */
     public function __construct(string $body, int $status)
@@ -36,13 +43,21 @@ class Response
     /**
      * Prepares a view with ViewWrapper.
      * 
-     * @param string $view Accepts the name of a blade page
+     * @param string $view
+     *        Accepts a relative path of a blade file.
+     * @param array $data
+     *        Accepts an associative array with the blade
+     *        parameters to integrate into the view.
+     * @throws \OutOfRangeException
      */
     public static function prepareView(
         string $view,
         array $data = [],
         int $status = 200
     ): self {
+        if ($status > 300 && $status < 399 || $status > 499) {
+            throw new \OutOfRangeException("Invalid file status code", 500);
+        }
         $response = new self(ViewWrapper::render($view, $data), $status);
         return $response
             ->setHeader('Content-Type', 'text/html; charset=utf-8')
@@ -53,11 +68,17 @@ class Response
      * Prepares a json array to the client.
      * 
      * @param array $json_decoded
+     *        Acceptes a decoded associative json array.
+     * @throws \JsonException
+     * @throws \OutOfRangeException
      */
     public static function prepareJson(
         array $json_decoded,
         int $status = 100
     ): self {
+        if ($status > 300 && $status < 399 || $status > 499) {
+            throw new \OutOfRangeException("Invalid json status code", 500);
+        }
         $json_encoded = json_encode($json_decoded);
         if ($json_encoded === false) {
             throw new \JsonException('Invalid response body', 500);
@@ -72,13 +93,19 @@ class Response
      * Prepares a file to the client.
      * 
      * @param string $relative_path
+     *        Accepts a relative path pointing to an existant file.
+     * @throws \RuntimeException
+     * @throws \OutOfRangeException
      */
     public static function prepareFile(
         string $relative_path,
         int $status = 100
     ): self {
+        if ($status > 300 && $status < 399 || $status > 499) {
+            throw new \OutOfRangeException("Invalid file status code", 500);
+        }
         if (!file_exists($relative_path)) {
-            throw new \RuntimeException('File not found', 500);
+            throw new \RuntimeException('File not found', 404);
         }
         $response = new self(file_get_contents($relative_path), $status);
         return $response
@@ -88,22 +115,32 @@ class Response
 
     /**
      * Prepares a redirect response to the client.
+     * 
+     * @param string $url
+     *        Accepts a relative redirect URL path.
+     * @param int $status
+     *        Accepts redirect statuses from 300 to 399.
+     * @throws \OutOfRangeException
      */
     public static function redirect(string $url, int $status): self
     {
+        if ($status < 300 || $status > 399) {
+            throw new \OutOfRangeException("Invalid redirect status code", 500);
+        }
         $response = new self('', $status);
         return $response->setHeader('Location', $url);
     }
     
     /** 
-     * Prepares a Cookie to a response.
+     * Prepares a response cookie.
      * 
-     * @param int $expires Specified in hours
+     * @param int $expires 
+     *        Specified in hours.
      */
     public function setCookie(
         string $key,
         string $value,
-        int $expires = 24
+        int $expires
     ): self {
         $this->cookies[$key] = [
             'value' => $value,
@@ -112,18 +149,14 @@ class Response
         return $this;
     }
     
-    /**
-     * Prepares a header to a response.
-     */
+    /** Prepares a response header. */
     public function setHeader(string $key, string $value): self
     {
         $this->headers[$key] = $value;
         return $this;
     }
 
-    /** 
-     * Sends a response to the client.
-     */
+    /** Sends a response to the client. */
     public function sendResponse(bool $stream = false): void
     {
         // Specified status

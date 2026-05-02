@@ -3,49 +3,50 @@
 namespace Core;
 
 /**
- * Provides information on an incoming request.
+ * Provides an object-oriented request reference.
  * 
  * The purpose of Request is to identify and to provide 
- * all the necessary information on an incoming request.
+ * all the necessary information on the incoming request.
  */
 class Request
 {
-    /**
-     * Holds the method of a request.
-     */
+    /** Holds the request method. */
     public string $method;
 
-    /**
-     * Holds the url of a request.
-     */
+    /** Holds the request URL. */
     public string $url;
 
-    /**
-     * Holds the body of a request.
-     */
+    /** Holds the request body. */
     public array $body;
 
-    /**
-     * Holds the headers of a request.
-     */
+    /** Holds the request headers. */
     public array $headers;
 
     /**
      * Holds the dynamic variables of a request.
      * 
-     * @see \Core\Router->resolve()
+     * This feature enables the user to utilize the dynamic
+     * routes. Conceptually, it is intended to avoid overcharging
+     * the query or access a specific resource in the OOP context.
+     * In practice, in case a dynamic route isdetected, the parameters 
+     * are passed to an associated controller as ...$array. To find out
+     * more, you may refer to the the resource below:
+     * 
+     * @see Core\Router
      */
     public array $dynamic = [];
 
     /**
      * Transmitted information from middlewares to a controller.
+     * 
+     * Sometimes middlewares have to supply the controller with
+     * additonal information, so as to modify a certain behaviour.
+     * This can be done easily by setting custom attributes in
+     * middlewares and getting them in controllers.
      */
     public array $attributes = [];
     
-    /**
-     * Extracts the information of a request 
-     * and assigns it to the properties.
-     */
+    /** Sets the request information. */
     public function __construct()
     {
         $this->method = self::getMethod();
@@ -54,8 +55,10 @@ class Request
         $this->headers = self::getHeaders();
     }
     
-    /**
+    /** 
      * Returns a normalized method.
+     * 
+     * @throws \RuntimeException
      */
     protected static function getMethod(): string
     {
@@ -68,10 +71,9 @@ class Request
     }
 
     /**
-     * Returns the relative url according to
-     * the PHP_URL_PATH specification.
+     * Returns the relative url.
      * 
-     * @link https://www.php.net/manual/fr/function.parse-url.php
+     * @throws \RuntimeException
      */
     protected static function getUrl(): string
     {
@@ -103,8 +105,7 @@ class Request
     /**
      * Returns an array of transmitted parameters.
      * 
-     * According to the documentation, query parameters are
-     * from now accessible with the $_GET superglobal.
+     * @throws \RuntimeException
      */
     protected static function getBody(): array
     {
@@ -118,21 +119,22 @@ class Request
             case 'patch':
             case 'put':
             case 'delete':
+                // Retrieve raw json
                 $json = file_get_contents('php://input');
+                // Handle json-related errors
                 if ($json === null) {
                     throw new \JsonException('Invalid request body', 400);
                 }
+                // Turn raw json into a decoded associative array
                 $body = json_decode($json, true);
                 break;
             default:
                 throw new \RuntimeException('Unsupported request method', 500);
         }
-        return is_array($body) ? $body : [];
+        return !empty($body) ? $body : [];
     }
 
-    /**
-     * Extracts an array with all the available HTTP headers.
-     */
+    /** Extracts an array with all the available HTTP headers. */
     protected static function getHeaders(): array
     {
         return getallheaders();

@@ -7,31 +7,24 @@ use Core\ModelWrapper;
 use eftec\bladeone\BladeOne;
 
 /**
- * Manages the configuration of dependencies and handles exceptions.
+ * Connects the central dependencies and classes.
  * 
- * The purpose of Kernel is load the configuration of dependencies 
- * and to connect all the classes processing an incoming request, 
- * monitoring for any exceptions.
+ * The purpose of Kernel is to load the configuration, integrate the 
+ * dependencies and to connect all the classes processing the incoming 
+ * request, also monitoring for any exceptions.
  */
 class Kernel
 {
-    /** 
-     * This property is used to store the available 
-     * configuration from dependencies 
-     */
+    /** Stores the application's configuration. */
     protected array $config;
 
-    /**
-     * Assigns the configuration of dependecies.
-     */
+    /** Assigns the application's configuration. */
     public function __construct(array $config)
     {
         $this->config = $config;
     }
 
-    /**
-     * Boots the application and monitors for any Throwables.
-     */
+    /** Loads the dependencies, the configuration and the classes. */
     public function handleRequest(): void
     {
         try {
@@ -43,9 +36,7 @@ class Kernel
         }
     }
 
-    /** 
-     * Initializes the necessary classes for Request handling.
-     */
+    /** Initializes the necessary classes for the request handling. */
     protected function loadClasses(): void
     {
         $request = new Request();
@@ -55,13 +46,23 @@ class Kernel
         $response->sendResponse();
     }
 
+    /** 
+     * Initializes the defined dependencies with the provided config. 
+     * 
+     * Note that the configuration provided within dotenv overrides
+     * the default configuration defined in the file below:
+     * 
+     * @see config/app.php
+     */
     protected function loadDependencies($config): void
     {
         Dotenv::createImmutable($config['dotenv']['relative_path'])->load();
+
         new BladeOne(
             $config['bladeone']['views_path'],
             $config['bladeone']['cache_path']
         );
+
         new ModelWrapper(
             $_ENV['HOSTNAME'] ?? $config['modelwrapper']['hostname'],
             $_ENV['USERNAME'] ?? $config['modelwrapper']['username'],
@@ -70,7 +71,8 @@ class Kernel
         );
     }
     /**
-     * Sends a special response to the client.
+     * Depending on the production parameter, supplies the client with 
+     * the available information on the occured issue.
      * 
      * @param \Exception|\Error $e Parent or child Exception|Error classes.
      */
@@ -93,6 +95,11 @@ class Kernel
         }
     }
 
+    /**
+     * Validates the default configuration parameters' name and/or type.
+     * 
+     * @throws \InvalidArgumentException
+     */
     protected function throwExceptionOverInvalidConfig(array $config): void
     {
         $valid_parameters = [
@@ -101,6 +108,7 @@ class Kernel
             'bladeone' => ['views_path', 'cache_path'],
             'application' => ['production']
         ];
+        
         foreach ($valid_parameters as $parameter => $options) {
             if(!isset($config[$parameter]) || !is_array($config[$parameter])) {
                 throw new \InvalidArgumentException("Invalid argument \"$parameter\"", 500);

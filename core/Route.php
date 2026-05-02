@@ -12,27 +12,25 @@ namespace Core;
  */
 class Route
 {
-    /**
-     * Specifies a valid method.
-     */
+    /** Holds the route's method. */
     public string $method;
 
-    /**
-     * Holds a valid route.
-     */
+    /** Holds the route's URL. */
     public string $url;
 
     /**
-     * Specifies a controller to apply to a route.
+     * Holds the route's controller.
      * 
-     * @var array|callable 
-     *      Accepts a defined, or an anonymous controller as following 
-     *      function($request) {...} and return a response.
+     * * Defined controller: [Controller::class => 'method]
+     * * Anonymous controller: function(Core\Request $request): Core\Response {...}
+     * 
+     * @property array|callable $controller 
+     *      Accepts a defined or an anonymous controller.
      */
     public $controller;
     
     /**
-     * Holds a controller's method.
+     * Holds the defined controller's method.
      */
     public string $action;
     
@@ -42,7 +40,7 @@ class Route
      * In case manually specified, the middlewares below would be 
      * considered "default". Otherwise, by associating middlewares 
      * directly with the middleware(), these are considered optional 
-     * and never dublicate in both cases.
+     * and must never dublicate.
      */
     public array $middlewares = [];
 
@@ -53,12 +51,18 @@ class Route
      * Groups specified below don't directly apply to the routes as
      * with $middlewares. In fact, these should be applied with the
      * group() method. Beforehand, groups have to be defined as nested
-     * arrays with specified middlewares.
+     * arrays with the group name as a key and the middleware names 
+     * in an associated array according to the key.
      */
     protected array $groups = [];
     
     /**
      * Creates a new route with the provided parameters.
+     *
+     * @param string $url
+     *        Accepts a relative URL path. 
+     * @param array|callable $controller 
+     *      Accepts a defined or an anonymous controller.
      */
     public function __construct(
         string $method,
@@ -74,6 +78,11 @@ class Route
 
     /**
      * Creates a route to read data.
+     * 
+     * @param string $url
+     *        Accepts a relative URL path. 
+     * @param array|callable $controller 
+     *      Accepts a defined or an anonymous controller.
      */
     public static function get(string $url, array|callable $controller): self
     {
@@ -82,6 +91,11 @@ class Route
 
     /**
      * Creates a route to create data.
+     * 
+     * @param string $url
+     *        Accepts a relative URL path. 
+     * @param array|callable $controller 
+     *      Accepts a defined or an anonymous controller.
      */
     public static function post(string $url, array|callable $controller): self
     {
@@ -90,6 +104,11 @@ class Route
 
     /**
      * Creates a route to update data.
+     * 
+     * @param string $url
+     *        Accepts a relative URL path. 
+     * @param array|callable $controller 
+     *      Accepts a defined or an anonymous controller.
      */
     public static function patch(string $url, array|callable $controller): self
     {
@@ -98,6 +117,11 @@ class Route
 
     /**
      * Creates a route to overwrite data.
+     * 
+     * @param string $url
+     *        Accepts a relative URL path.
+     * @param array|callable $controller
+     *      Accepts a defined or an anonymous controller.
      */
     public static function put(string $url, array|callable $controller): self
     {
@@ -106,15 +130,18 @@ class Route
 
     /**
      * Creates a route to delete data.
+     * 
+     * @param string $url
+     *        Accepts a relative URL path. 
+     * @param array|callable $controller 
+     *      Accepts a defined or an anonymous controller.
      */
     public static function delete(string $url, array|callable $controller): self
     {
         return self::setRoute($url, $controller, 'delete');
     }
     
-    /**
-     * Adds a stackable middleware class to a specified route.
-     */
+    /** Adds stackable middlewares to a specified route. */
     public function middleware(string ...$middlewares): self
     {
         foreach ($middlewares as $middleware) {
@@ -124,8 +151,10 @@ class Route
         return $this;
     }
     
-    /**
-     * Adds a stackable middleware group to a specified route.
+    /** 
+     * Adds stackable middlewares to a specified route using groups.
+     * 
+     * @throws \InvalidArgumentException
      */
     public function group(string ...$group): self
     {
@@ -143,8 +172,10 @@ class Route
         return $this;
     }
 
-    /**
+    /** 
      * Helper function which creates a route.
+     * 
+     * @throws \InvalidArgumentException
      */
     protected static function setRoute(
         string $url,
@@ -159,7 +190,7 @@ class Route
                     500
                 );
             }
-            // Create a route with a specified controller
+            // Create a route with a defined controller
             return new self($method, $url, key($controller), current($controller));
         } else {
             // Create a route with an anonymous controller
@@ -167,6 +198,7 @@ class Route
         }
     }
 
+    /** Helper function which sets middlewares. */
     protected function setMiddleware(string $middleware): void
     {
         // Identify middleware parameters
@@ -179,6 +211,11 @@ class Route
         }
     }
 
+    /** 
+     * Helper function which validates middlewares.
+     * 
+     * @throws \InvalidArgumentException
+     */
     protected function processMiddleware(string $middleware, array $attributes = []): void
     {
         // Check whether the current class is valid

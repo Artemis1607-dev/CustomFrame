@@ -1,7 +1,15 @@
 <?php
 
 /**
- * Integrates dependencies and boots the application.
+ * Loads configuration and boots the application.
+ * 
+ * This file serves as a bridge between the public and the private
+ * server internals, keeping everything secure. Note that it is
+ * possible and intended to extend the global configuration to
+ * separate files, providing a great organisation in terms of
+ * dependency and application configuration.
+ * 
+ * @see Core\Kernel
  */
 
 use Core\Kernel;
@@ -30,5 +38,4 @@ $config = [
     ]
 ];
 
-// Boot the application
 new Kernel($config)->handleRequest();

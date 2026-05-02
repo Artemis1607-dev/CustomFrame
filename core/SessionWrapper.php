@@ -119,6 +119,15 @@ class SessionWrapper extends Session
         $_SESSION['auth_until'] = null;
     }
 
+    protected static function markSessionHijacked(): void
+    {
+        self::throwExceptionIfSessionWasNotStarted();
+
+        $_SESSION['hijacked'] = true;
+        $_SESSION['auth'] = false;
+        $_SESSION['auth_until'] = null;
+    }
+
     protected static function throwExceptionIfSessionWasNotStarted(): void
     {
         if (session_status() !== 2) {

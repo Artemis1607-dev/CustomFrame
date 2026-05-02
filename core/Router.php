@@ -23,7 +23,7 @@ class Router
      * In order to improve perfomance, it is more convinient to group
      * the routes by their method specified in the instance's property.
      * 
-     * @see \Core\Route
+     * @see Core\Route
      */
     public function __construct() 
     {
