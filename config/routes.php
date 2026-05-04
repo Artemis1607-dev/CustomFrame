@@ -7,9 +7,6 @@
  * Core\Router for the request URL validation. Be free
  * to check Core\Route to find out on the available
  * route features.
- * 
- * @see Core\Router
- * @see Core\Route
  */
 
 use App\Controllers\Controller;

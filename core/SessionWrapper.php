@@ -4,11 +4,28 @@ namespace Core;
 
 use Josantonius\Session\Session;
 
+/**
+ * Dedicated parent class of session middlewares.
+ * 
+ * Based on the work of Josantonius, this class is supplying
+ * the middlewares with the necessary methods to control php
+ * default sessions. Note that certain session data can
+ * eventually turn null; interpret this as "unusable data"
+ * according to the current session state.
+ * 
+ * @link https://github.com/josantonius/php-session
+ */
 class SessionWrapper extends Session
 {
-    public array $config;
+    /** Holds secure session configuration. */
+    protected array $config;
 
-    public function __construct()
+    /** 
+     * Assigns configuration based on the recommended ini settings.
+     * 
+     * @link https://www.php.net/manual/en/session.security.ini.php
+     */
+    protected function __construct()
     {
         $this->config = [
             // Cookies
@@ -31,7 +48,14 @@ class SessionWrapper extends Session
         ];
     }
     
-    public function markSessionActive(int $id, string $role): void
+    /**
+     * (Re)authenticates a session.
+     * 
+     * To prevent session injection, id regeneration is highly advised.
+     * Moreover, this method is intended be used by an AuthController in order 
+     * to (re)authenticate a legitimate user.
+     */
+    protected function markSessionActive(int $id, string $role): void
     {
         $this->start($this->config);
         // Prevent injection
@@ -57,9 +81,16 @@ class SessionWrapper extends Session
     }
 
     /**
+     * Refreshes the ongoing session.
+     * 
+     * Note that so as to satisfy the "grace period" requirement,
+     * this method marks the old session as obsolete and the new one
+     * as unauthenticated. Thus, this concept was well-implemented by
+     * the repository below:
+     * 
      * @link https://github.com/tedivm/phpsessionmanager/blob/master/Session.class.php
      */
-    public function refreshSession(): void
+    protected function refreshSession(): void
     {
         // Mark current session as Obsolete
         $this->markSessionObsolete();
@@ -75,9 +106,14 @@ class SessionWrapper extends Session
         $this->markSessionUnauthorized();
     }
     
-    public function finishSession(): void
+    /**
+     * Finishes the ongoing session.
+     * 
+     * Basically, forcefully destroys the ongoing session  and its cookie.
+     */
+    protected function finishSession(): void
     {
-        self::throwExceptionIfSessionWasNotStarted();
+        $this->throwExceptionIfSessionWasNotStarted();
         // Delete instantly this session (keep in mind the network factor)
         session_unset();
         session_destroy();
@@ -91,9 +127,10 @@ class SessionWrapper extends Session
         ]);
     }
 
+    /** Marks a session as obsolete. */
     protected function markSessionObsolete(): void
     {
-        self::throwExceptionIfSessionWasNotStarted();
+        $this->throwExceptionIfSessionWasNotStarted();
 
         $_SESSION['last_activity'] = null;
         $_SESSION['created_at'] = null;
@@ -105,9 +142,10 @@ class SessionWrapper extends Session
         $_SESSION['auth_until'] = null;
     }
 
+    /** Marks a session as unauthorized. */
     protected function markSessionUnauthorized(): void
     {
-        self::throwExceptionIfSessionWasNotStarted();
+        $this->throwExceptionIfSessionWasNotStarted();
 
         $_SESSION['last_activity'] = time();
         $_SESSION['created_at'] = time();
@@ -119,16 +157,22 @@ class SessionWrapper extends Session
         $_SESSION['auth_until'] = null;
     }
 
-    protected static function markSessionHijacked(): void
+    /** Marks a session as hijacked. */
+    protected function markSessionHijacked(): void
     {
-        self::throwExceptionIfSessionWasNotStarted();
+        $this->throwExceptionIfSessionWasNotStarted();
 
         $_SESSION['hijacked'] = true;
         $_SESSION['auth'] = false;
         $_SESSION['auth_until'] = null;
     }
 
-    protected static function throwExceptionIfSessionWasNotStarted(): void
+    /** 
+     * Prevents an unstarted session.
+     * 
+     * @throws \RuntimeException
+     */
+    protected function throwExceptionIfSessionWasNotStarted(): void
     {
         if (session_status() !== 2) {
             throw new \RuntimeException('Session not started', 500);

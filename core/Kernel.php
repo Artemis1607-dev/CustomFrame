@@ -24,7 +24,13 @@ class Kernel
         $this->config = $config;
     }
 
-    /** Loads the dependencies, the configuration and the classes. */
+    /** 
+     * Central element in the request handling.
+     * 
+     * Note that this method possesses a large responsibility
+     * vector, since it's supposed to load the dependencies,
+     * the configuration and the classes.
+     */
     public function handleRequest(): void
     {
         try {
@@ -34,16 +40,6 @@ class Kernel
         } catch (\Exception|\Error $e) {
             $this->sendException($e);
         }
-    }
-
-    /** Initializes the necessary classes for the request handling. */
-    protected function loadClasses(): void
-    {
-        $request = new Request();
-        $router = new Router();
-
-        $response = $router->resolveRoute($request);
-        $response->sendResponse();
     }
 
     /** 
@@ -70,30 +66,6 @@ class Kernel
             $_ENV['DATABASE'] ?? $config['modelwrapper']['database']
         );
     }
-    /**
-     * Depending on the production parameter, supplies the client with 
-     * the available information on the occured issue.
-     * 
-     * @param \Exception|\Error $e Parent or child Exception|Error classes.
-     */
-    protected function sendException(\Exception|\Error $e): void 
-    {
-        if (($_ENV["PRODUCTION"] ?? $this->config['application']['production']) === true) {
-            view('debug', [
-                'status' => $e->getCode() !== 0 ? $e->getCode() : 'Undefined',
-                'message' => $e->getMessage()
-            ])->sendResponse();
-        } else {
-            view('status', [
-                'class' => get_class($e),
-                'status' => $e->getCode() !== 0 ? $e->getCode() : 'Undefined',
-                'message' => $e->getMessage(),
-                'line' => $e->getLine(),
-                'file' => $e->getFile(),
-                'trace' => $e->getTrace()
-            ])->sendResponse();
-        }
-    }
 
     /**
      * Validates the default configuration parameters' name and/or type.
@@ -118,6 +90,41 @@ class Kernel
                     throw new \InvalidArgumentException("Invalid argument \"$option\"", 500);
                 }
             }
+        }
+    }
+
+    /** Initializes the necessary classes for the request handling. */
+    protected function loadClasses(): void
+    {
+        $request = new Request();
+        $router = new Router();
+
+        $response = $router->resolveRoute($request);
+        $response->sendResponse();
+    }
+
+    /**
+     * Depending on the production parameter, supplies the client with 
+     * the available information on the occured issue.
+     * 
+     * @param \Exception|\Error $e Parent or child Exception|Error classes.
+     */
+    protected function sendException(\Exception|\Error $e): void 
+    {
+        if (($_ENV["PRODUCTION"] ?? $this->config['application']['production']) === true) {
+            view('debug', [
+                'status' => $e->getCode() !== 0 ? $e->getCode() : 'Undefined',
+                'message' => $e->getMessage()
+            ])->sendResponse();
+        } else {
+            view('status', [
+                'class' => get_class($e),
+                'status' => $e->getCode() !== 0 ? $e->getCode() : 'Undefined',
+                'message' => $e->getMessage(),
+                'line' => $e->getLine(),
+                'file' => $e->getFile(),
+                'trace' => $e->getTrace()
+            ])->sendResponse();
         }
     }
 }

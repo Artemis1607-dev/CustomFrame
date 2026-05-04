@@ -7,10 +7,17 @@
 
 use Core\Response;
 
-/** Loads an array with the defined routes. */
+/** 
+ * Loads an array with the defined routes.
+ *
+ * @throws \LogicException 
+ */
 function routes(): array
 {
-    return require_once __DIR__ . "/../config/routes.php";
+    if (!file_exists(__DIR__ . 'routes.php')) {
+        throw new LogicException('File with routes is missing', 500);
+    }
+    return require_once __DIR__ . "routes.php";
 }
 
 /** Validates a class and its method. */

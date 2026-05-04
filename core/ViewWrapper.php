@@ -12,6 +12,16 @@ use eftec\bladeone\BladeOne;
  */
 class ViewWrapper
 {
+    /**
+     * Renders a blade view.
+     * 
+     * @param string $view
+     *        Accepts a relative path to a blade file.
+     * @param array $data
+     *        Accepts an associative array with the blade
+     *        parameters to integrate into the view.
+     * @throws \LogicException
+     */
     public static function render(string $view, array $data = []): string
     {
         if (!isset(BladeOne::$instance)) {

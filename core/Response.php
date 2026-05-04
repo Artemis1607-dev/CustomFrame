@@ -27,24 +27,24 @@ class Response
     protected array $cookies = [];
     
     /**
-     * Prepares a response using the view and the status.
-     * 
-     * Additionally, this method can directly be used in a controller,
-     * enabling sending custom responses. For instance, once an AJAX
-     * text content is requested, a controller has to specify the following 
-     * new Response($content, $status) and send necessary headers or cookies.
+     * Prepares a response using the body and the status.
+     *  
+     * @throws \OutOfRangeException
      */
     public function __construct(string $body, int $status)
     {
+        if ($status < 100 || $status > 599) {
+            throw new \OutOfRangeException("Invalid status code", 500);
+        }
         $this->body = $body;
         $this->status = $status;
     }
 
     /**
-     * Prepares a view with ViewWrapper.
+     * Prepares a view response with ViewWrapper.
      * 
      * @param string $view
-     *        Accepts a relative path of a blade file.
+     *        Accepts a relative path to a blade file.
      * @param array $data
      *        Accepts an associative array with the blade
      *        parameters to integrate into the view.
@@ -55,8 +55,8 @@ class Response
         array $data = [],
         int $status = 200
     ): self {
-        if ($status > 300 && $status < 399 || $status > 499) {
-            throw new \OutOfRangeException("Invalid file status code", 500);
+        if ($status >= 300 && $status <= 399 || $status > 499) {
+            throw new \OutOfRangeException("Invalid status code", 500);
         }
         $response = new self(ViewWrapper::render($view, $data), $status);
         return $response
@@ -65,7 +65,7 @@ class Response
     }
 
     /**
-     * Prepares a json array to the client.
+     * Prepares a json response to the client.
      * 
      * @param array $json_decoded
      *        Acceptes a decoded associative json array.
@@ -76,13 +76,15 @@ class Response
         array $json_decoded,
         int $status = 100
     ): self {
-        if ($status > 300 && $status < 399 || $status > 499) {
-            throw new \OutOfRangeException("Invalid json status code", 500);
+        if ($status >= 300 && $status <= 399 || $status > 499) {
+            throw new \OutOfRangeException("Invalid status code", 500);
         }
+
         $json_encoded = json_encode($json_decoded);
         if ($json_encoded === false) {
             throw new \JsonException('Invalid response body', 500);
         }
+
         $response = new self(json_encode($json_encoded), $status);
         return $response
             ->setHeader('Content-Type', 'application/json')
@@ -90,7 +92,7 @@ class Response
     }
 
     /**
-     * Prepares a file to the client.
+     * Prepares a file response to the client.
      * 
      * @param string $relative_path
      *        Accepts a relative path pointing to an existant file.
@@ -101,8 +103,8 @@ class Response
         string $relative_path,
         int $status = 100
     ): self {
-        if ($status > 300 && $status < 399 || $status > 499) {
-            throw new \OutOfRangeException("Invalid file status code", 500);
+        if ($status >= 300 && $status <= 399 || $status > 499) {
+            throw new \OutOfRangeException("Invalid status code", 500);
         }
         if (!file_exists($relative_path)) {
             throw new \RuntimeException('File not found', 404);
@@ -125,7 +127,7 @@ class Response
     public static function redirect(string $url, int $status): self
     {
         if ($status < 300 || $status > 399) {
-            throw new \OutOfRangeException("Invalid redirect status code", 500);
+            throw new \OutOfRangeException("Invalid status code", 500);
         }
         $response = new self('', $status);
         return $response->setHeader('Location', $url);
@@ -140,7 +142,7 @@ class Response
     public function setCookie(
         string $key,
         string $value,
-        int $expires
+        int $expires = 24
     ): self {
         $this->cookies[$key] = [
             'value' => $value,
@@ -156,7 +158,13 @@ class Response
         return $this;
     }
 
-    /** Sends a response to the client. */
+    /** 
+     * Sends a response to the client.
+     *
+     * @param bool $stream
+     *        ToDo: in case set to true, enable
+     *        post-request exchange.
+     */
     public function sendResponse(bool $stream = false): void
     {
         // Specified status

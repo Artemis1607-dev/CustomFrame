@@ -45,7 +45,16 @@ class AuthMiddleware extends SessionWrapper
      * auth and auth_until session flags to ensure correct handling of
      * re-authentication or hijacking conditions.
      * 
+     * @param Request $request
+     *        Passed as request from \Core\Router.
+     * @param \Closure $next
+     *        Required in middleware chaining.
+     * @param string $role
+     *        Passed as a middleware parameter.
      * @throws SessionException
+     * @return \Closure $next
+     *         In fact, $next changes dynamically depending on
+     *         the middlewares assigned to the matched route.
      */
     protected function handleAuth(Request $request, \Closure $next, string $role)
     {

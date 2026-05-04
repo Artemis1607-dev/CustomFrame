@@ -3,10 +3,24 @@
 namespace Core;
 
 /**
- * Validates a request and wires the necessary classes dealing with it.
+ * Resolves a request and wires the necessary classes dealing with it.
  * 
- * The purpose of Router is to decide whether a request is valid
- * or invalid by comparing an incoming request to the existing routes.
+ * First of all, Core\Router makes sure a route is existant. Otherwise, the 
+ * 404 error is thrown. In the current setup, two route types are available:
+ * 
+ * * Static routes: classic routes without parameters
+ * * Dynamic routes: modern routes with parameters
+ * 
+ * Once the resolution is finished, Core\Router is checking whether a route
+ * has any middlewares to be applied before dispatching. Once again, there's
+ * two options:
+ * 
+ * * In case at least one middleware is present, filter the request
+ * * In case no middleware is present, pursue directly with dispatching
+ * 
+ * Finally, the last step is to apply a specified controller, whether it
+ * is defined or anonymous, Core\Router is intended to handle both with or
+ * not dynamic parameter passing.
  */
 class Router
 {
@@ -15,15 +29,13 @@ class Router
      * 
      * @see /config/routes.php
      */
-    public array $routes;
+    protected array $routes;
 
     /**
-     * Assigns an array with the routes to the $routes property.
+     * Assigns the predefined routes.
      * 
-     * In order to improve perfomance, it is more convinient to group
-     * the routes by their method specified in the instance's property.
-     * 
-     * @see Core\Route
+     * For performance reasons, it is more efficient to group
+     * the routes by their method.
      */
     public function __construct() 
     {
@@ -34,10 +46,12 @@ class Router
     }
 
     /** 
-     * Analyzes an incoming request.
+     * Resolves an incoming request.
      * 
-     * This method is used to compare an incoming request and already
-     * defined static or dynamic routes.
+     * This method is used to compare an incoming request with the
+     * predefined routes.
+     * 
+     * @throws \RuntimeException
      */
     public function resolveRoute(Request $request): Response
     {
@@ -74,10 +88,10 @@ class Router
     }
     
     /**
-     * Processes an incoming request.
+     * Processes the matched route.
      * 
      * This method checks if a middleware is associated to the route, 
-     * deciding whether to process() or to dispatch() current request.
+     * deciding whether to process() or to dispatch() the current request.
      */
     protected function processRoute(
         Request $request,
@@ -94,9 +108,9 @@ class Router
      * Filters an incoming request.
      * 
      * This method applies a chain of middleware classes so as to filter
-     * the request for potentially harmful infomation. Once finished,
-     * it calls the dispatch method which passes a theoretically safe
-     * request to the associated controller.
+     * the request for potentially invalid data. Once finished, it calls 
+     * the dispatch method which passes a theoretically safe request to 
+     * the associated controller.
      */
     protected function handleMiddleware(
         Request $request,

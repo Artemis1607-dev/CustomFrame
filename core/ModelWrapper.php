@@ -18,10 +18,10 @@ class ModelWrapper
     public static \mysqli $instance;
 
     /** 
-     * Establishes a database connection. 
+     * Establishes a database connection.
      * 
      * Note that this class is initialized in Core\Kernel,
-     * which makes possible to use the last instancee accross
+     * which makes possible to use its last instance accross
      * the whole codebase.
      * 
      * @throws \PDOException

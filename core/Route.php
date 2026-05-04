@@ -3,10 +3,12 @@
 namespace Core;
 
 /**
- * Predefines the route structure.
+ * Defines the route structure.
  * 
- * The purpose of Route is to provide a set of predefined routes 
- * that instruct the Router on how to respond to a request.
+ * The purpose of Core\Route is to provide a set of routes
+ * that instruct Core\Router on how to treat a request.
+ * By default, the routes are required by Core\Router with
+ * a helper function pointing to the configuration file below:
  * 
  * @see /config/routes.php
  */
@@ -25,17 +27,19 @@ class Route
      * * Anonymous controller: function(Core\Request $request): Core\Response {...}
      * 
      * @property array|callable $controller 
-     *      Accepts a defined or an anonymous controller.
+     *           Accepts a defined or an anonymous controller.
      */
     public $controller;
     
     /**
      * Holds the defined controller's method.
+     * 
+     * Note that an anonymous controller cannot have an action.
      */
     public string $action;
     
     /**
-     * Stocks default middlewares applied to routes.
+     * Stocks default middlewares applied to the routes.
      * 
      * In case manually specified, the middlewares below would be 
      * considered "default". Otherwise, by associating middlewares 
@@ -56,15 +60,8 @@ class Route
      */
     protected array $groups = [];
     
-    /**
-     * Creates a new route with the provided parameters.
-     *
-     * @param string $url
-     *        Accepts a relative URL path. 
-     * @param array|callable $controller 
-     *      Accepts a defined or an anonymous controller.
-     */
-    public function __construct(
+    /** Creates a new route with the provided parameters. */
+    protected function __construct(
         string $method,
         string $url,
         string|callable $controller,
@@ -80,9 +77,9 @@ class Route
      * Creates a route to read data.
      * 
      * @param string $url
-     *        Accepts a relative URL path. 
+     *        Accepts a relative URL path.
      * @param array|callable $controller 
-     *      Accepts a defined or an anonymous controller.
+     *        Accepts a defined or an anonymous controller.
      */
     public static function get(string $url, array|callable $controller): self
     {
@@ -93,9 +90,9 @@ class Route
      * Creates a route to create data.
      * 
      * @param string $url
-     *        Accepts a relative URL path. 
+     *        Accepts a relative URL path.
      * @param array|callable $controller 
-     *      Accepts a defined or an anonymous controller.
+     *        Accepts a defined or an anonymous controller.
      */
     public static function post(string $url, array|callable $controller): self
     {
@@ -106,9 +103,9 @@ class Route
      * Creates a route to update data.
      * 
      * @param string $url
-     *        Accepts a relative URL path. 
+     *        Accepts a relative URL path.
      * @param array|callable $controller 
-     *      Accepts a defined or an anonymous controller.
+     *        Accepts a defined or an anonymous controller.
      */
     public static function patch(string $url, array|callable $controller): self
     {
@@ -121,7 +118,7 @@ class Route
      * @param string $url
      *        Accepts a relative URL path.
      * @param array|callable $controller
-     *      Accepts a defined or an anonymous controller.
+     *        Accepts a defined or an anonymous controller.
      */
     public static function put(string $url, array|callable $controller): self
     {
@@ -132,9 +129,9 @@ class Route
      * Creates a route to delete data.
      * 
      * @param string $url
-     *        Accepts a relative URL path. 
+     *        Accepts a relative URL path.
      * @param array|callable $controller 
-     *      Accepts a defined or an anonymous controller.
+     *        Accepts a defined or an anonymous controller.
      */
     public static function delete(string $url, array|callable $controller): self
     {

@@ -49,10 +49,10 @@ class Request
     /** Sets the request information. */
     public function __construct()
     {
-        $this->method = self::getMethod();
-        $this->url = self::getUrl();
-        $this->body = self::getBody();
-        $this->headers = self::getHeaders();
+        $this->method = $this->getMethod();
+        $this->url = $this->getUrl();
+        $this->body = $this->getBody();
+        $this->headers = $this->getHeaders();
     }
     
     /** 
@@ -60,9 +60,8 @@ class Request
      * 
      * @throws \RuntimeException
      */
-    protected static function getMethod(): string
+    protected function getMethod(): string
     {
-        // Retreive and normalize
         $method = strtolower($_SERVER['REQUEST_METHOD']);
         if (empty($method)) {
             throw new \RuntimeException('Invalid request method', 400);
@@ -75,7 +74,7 @@ class Request
      * 
      * @throws \RuntimeException
      */
-    protected static function getUrl(): string
+    protected function getUrl(): string
     {
         // Retrieve
         $raw_url = (($_ENV['PRODUCTION'] ?? true) === false
@@ -106,10 +105,11 @@ class Request
      * Returns an array of transmitted parameters.
      * 
      * @throws \RuntimeException
+     * @throws \JsonException
      */
-    protected static function getBody(): array
+    protected function getBody(): array
     {
-        switch (self::getMethod()) {
+        switch ($this->getMethod()) {
             case 'get':
                 $body = $_GET;
                 break;
@@ -135,7 +135,7 @@ class Request
     }
 
     /** Extracts an array with all the available HTTP headers. */
-    protected static function getHeaders(): array
+    protected function getHeaders(): array
     {
         return getallheaders();
     }

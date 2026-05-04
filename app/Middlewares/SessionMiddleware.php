@@ -61,7 +61,14 @@ class SessionMiddleware extends SessionWrapper
      * * (Not) Obsolete -> (Not) Hijacked
      * * (Not) Expired -> (Not) Hijacked
      * 
+     * @param Request $request
+     *        Passed as request from \Core\Router.
+     * @param \Closure $next
+     *        Required in middleware chaining.
      * @throws SessionException
+     * @return \Closure $next
+     *         In fact, $next changes dynamically depending on
+     *         the middlewares assigned to the matched route.
      */
     protected function handleSession(Request $request, \Closure $next)
     {
@@ -129,8 +136,8 @@ class SessionMiddleware extends SessionWrapper
      * defines the expiration of an ongoing session. Basically, the obsolete
      * flag gets updated with each succesful request and the created_at gets
      * updated only on a successful relogin, however both are used to ensure
-     * that the session is always up-to-date. Additionally, to learn more about
-     * session refreshing, follow the class below:
+     * that the session is always up-to-date. Additionally, to learn more 
+     * about session refreshing, follow the class below:
      * 
      * @see Core\SessionWrapper
      */
@@ -180,7 +187,7 @@ class SessionMiddleware extends SessionWrapper
         ) {
             return $next($request);
         } else {
-            self::markSessionHijacked();
+            $this->markSessionHijacked();
             // Pursue the chaining
             return $next($request);
         }
