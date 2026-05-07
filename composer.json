@@ -13,6 +13,9 @@
             "App\\": "app/",
             "Core\\": "core/"
         },
+        "classmap": [
+            "tests/"
+        ],
         "files": [
             "config/helpers.php",
             "config/app.php"

@@ -148,7 +148,7 @@ class Route
         return $this;
     }
     
-    /** 
+    /**
      * Adds stackable middlewares to a specified route using groups.
      * 
      * @throws \InvalidArgumentException
@@ -183,7 +183,7 @@ class Route
             // Check whether the current class is valid
             if (!validate(key($controller), current($controller))) {
                 throw new \InvalidArgumentException(
-                    '"'. key($controller) . '->' . current($controller) . '()" not found',
+                    '"' . key($controller) . '->' . current($controller) . '()" not found',
                     500
                 );
             }
@@ -218,7 +218,7 @@ class Route
         // Check whether the current class is valid
         if (!validate($middleware, 'filter')) {
             throw new \InvalidArgumentException(
-                '"'. $middleware . '->filter()" not found',
+                '"' . $middleware . '->filter()" not found',
                 500
             );
         }

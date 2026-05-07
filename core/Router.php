@@ -2,6 +2,8 @@
 
 namespace Core;
 
+use Core\Route;
+
 /**
  * Resolves a request and wires the necessary classes dealing with it.
  * 
@@ -37,10 +39,13 @@ class Router
      * For performance reasons, it is more efficient to group
      * the routes by their method.
      */
-    public function __construct() 
+    public function __construct(array $routes) 
     {
         // Sort routes according to their method
-        foreach (routes() as $route) {
+        foreach ($routes as $route) {
+            if (!($route instanceof Route)) {
+                throw new \LogicException("Use of unsupported class \"$route\"", 500);
+            }
             $this->routes[$route->method][] = $route;
         }
     }

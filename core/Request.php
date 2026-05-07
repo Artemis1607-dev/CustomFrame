@@ -134,9 +134,25 @@ class Request
         return !empty($body) ? $body : [];
     }
 
-    /** Extracts an array with all the available HTTP headers. */
+    /** 
+     * Extracts an array with all the available HTTP headers. 
+     *
+     * @throws \RuntimeException
+     * @see www.php.net/manual/en/function.getallheaders.php
+     */
     protected function getHeaders(): array
-    {
-        return getallheaders();
+    { 
+        $headers = [];
+        foreach ($_SERVER as $name => $value) 
+        {
+            if (substr($name, 0, 5) == 'HTTP_') 
+            {
+                $headers[str_replace(' ', '-', ucwords(strtolower(str_replace('_', ' ', substr($name, 5)))))] = $value;
+            }
+        }
+        if (empty($headers)) {
+            throw new \RuntimeException('Headers not found', 400);
+        }
+        return $headers;
     }
 }

@@ -52,8 +52,8 @@ class SessionWrapper extends Session
      * (Re)authenticates a session.
      * 
      * To prevent session injection, id regeneration is highly advised.
-     * Moreover, this method is intended be used by an AuthController in order 
-     * to (re)authenticate a legitimate user.
+     * Moreover, this method is intended to be used by an AuthController 
+     * in order to (re)authenticate a legitimate user.
      */
     protected function markSessionActive(int $id, string $role): void
     {

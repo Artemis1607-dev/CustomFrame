@@ -34,8 +34,8 @@ class Kernel
     public function handleRequest(): void
     {
         try {
-            $this->loadDependencies($this->config);
-            $this->throwExceptionOverInvalidConfig($this->config);
+            $this->throwExceptionOverInvalidConfig();
+            $this->loadDependencies();
             $this->loadClasses();
         } catch (\Exception|\Error $e) {
             $this->sendException($e);
@@ -50,20 +50,20 @@ class Kernel
      * 
      * @see config/app.php
      */
-    protected function loadDependencies($config): void
+    protected function loadDependencies(): void
     {
-        Dotenv::createImmutable($config['dotenv']['relative_path'])->load();
+        Dotenv::createImmutable($this->config['env']['relative_path'])->load();
 
         new BladeOne(
-            $config['bladeone']['views_path'],
-            $config['bladeone']['cache_path']
+            $this->config['compiler']['views_path'],
+            $this->config['compiler']['cache_path']
         );
 
         new ModelWrapper(
-            $_ENV['HOSTNAME'] ?? $config['modelwrapper']['hostname'],
-            $_ENV['USERNAME'] ?? $config['modelwrapper']['username'],
-            $_ENV['PASSWORD'] ?? $config['modelwrapper']['password'],
-            $_ENV['DATABASE'] ?? $config['modelwrapper']['database']
+            $_ENV['HOSTNAME'] ?? $this->config['database']['hostname'],
+            $_ENV['USERNAME'] ?? $this->config['database']['username'],
+            $_ENV['PASSWORD'] ?? $this->config['database']['password'],
+            $_ENV['DATABASE'] ?? $this->config['database']['database']
         );
     }
 
@@ -72,17 +72,17 @@ class Kernel
      * 
      * @throws \InvalidArgumentException
      */
-    protected function throwExceptionOverInvalidConfig(array $config): void
+    protected function throwExceptionOverInvalidConfig(): void
     {
         $valid_parameters = [
-            'dotenv' => ['relative_path'],
-            'modelwrapper' => ['hostname', 'username', 'password', 'database'],
-            'bladeone' => ['views_path', 'cache_path'],
-            'application' => ['production']
+            'env' => ['relative_path'],
+            'database' => ['hostname', 'username', 'password', 'database'],
+            'compiler' => ['views_path', 'cache_path'],
+            'app' => ['production', 'routes']
         ];
         
         foreach ($valid_parameters as $parameter => $options) {
-            if(!isset($config[$parameter]) || !is_array($config[$parameter])) {
+            if(!isset($config[$parameter]) || !is_array($this->config[$parameter])) {
                 throw new \InvalidArgumentException("Invalid argument \"$parameter\"", 500);
             }
             foreach ($options as $option) {
@@ -97,7 +97,7 @@ class Kernel
     protected function loadClasses(): void
     {
         $request = new Request();
-        $router = new Router();
+        $router = new Router($this->config['app']['routes']);
 
         $response = $router->resolveRoute($request);
         $response->sendResponse();
@@ -109,9 +109,9 @@ class Kernel
      * 
      * @param \Exception|\Error $e Parent or child Exception|Error classes.
      */
-    protected function sendException(\Exception|\Error $e): void 
+    protected function sendException(\Exception|\Error $e): void
     {
-        if (($_ENV["PRODUCTION"] ?? $this->config['application']['production']) === true) {
+        if (($_ENV["PRODUCTION"] ?? $this->config['application']['production']) === 'false') {
             view('debug', [
                 'status' => $e->getCode() !== 0 ? $e->getCode() : 'Undefined',
                 'message' => $e->getMessage()

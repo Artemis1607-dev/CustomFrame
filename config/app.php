@@ -15,16 +15,16 @@
 use Core\Kernel;
 
 $config = [
-    'dotenv' => [
+    'env' => [
         'relative_path' => __DIR__ . '/../'
     ],
-    'modelwrapper' => [
+    'database' => [
         'hostname' => '',
         'username' => '',
         'password' => '',
         'database' => ''
     ],
-    'bladeone' => [
+    'compiler' => [
         'views_path' => [
             __DIR__ . '/../resources/views/',
             __DIR__ . '/../resources/views/components',
@@ -33,9 +33,11 @@ $config = [
         ],
         'cache_path' => __DIR__ . '/../storage/views/'
     ],
-    'application' => [
-        'production' => true
-    ]
+    'app' => [
+        'production' => 'true',
+        'routes' => routes()
+    ],
+
 ];
 
 new Kernel($config)->handleRequest();

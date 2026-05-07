@@ -14,10 +14,10 @@ use Core\Response;
  */
 function routes(): array
 {
-    if (!file_exists(__DIR__ . 'routes.php')) {
+    if (!file_exists(__DIR__ . '/routes.php')) {
         throw new LogicException('File with routes is missing', 500);
     }
-    return require_once __DIR__ . "routes.php";
+    return require_once __DIR__ . "/routes.php";
 }
 
 /** Validates a class and its method. */
@@ -51,7 +51,7 @@ function prepareFile(string $path): Response
 }
 
 /** Provides a shortcut for the redirect response. */
-function redirect(string $url): Response 
+function redirect(string $url, int $status): Response 
 {
-    return Response::prepareRedirect($url);
+    return Response::prepareRedirect($url, $status);
 }

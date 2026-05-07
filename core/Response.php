@@ -124,7 +124,7 @@ class Response
      *        Accepts redirect statuses from 300 to 399.
      * @throws \OutOfRangeException
      */
-    public static function redirect(string $url, int $status): self
+    public static function prepareRedirect(string $url, int $status): self
     {
         if ($status < 300 || $status > 399) {
             throw new \OutOfRangeException("Invalid status code", 500);
