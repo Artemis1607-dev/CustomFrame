@@ -12,6 +12,8 @@ use eftec\bladeone\BladeOne;
  * The purpose of Kernel is to load the configuration, integrate the 
  * dependencies and to connect all the classes processing the incoming 
  * request, also monitoring for any exceptions.
+ * 
+ * @todo Make possible to render $this->throwExceptionOverInvalidConfig()
  */
 class Kernel
 {
@@ -82,12 +84,12 @@ class Kernel
         ];
         
         foreach ($valid_parameters as $parameter => $options) {
-            if(!isset($config[$parameter]) || !is_array($this->config[$parameter])) {
-                throw new \InvalidArgumentException("Invalid argument \"$parameter\"", 500);
+            if(!isset($this->config[$parameter]) || !is_array($this->config[$parameter])) {
+                throw new \InvalidArgumentException("Invalid parameter \"$parameter\"", 500);
             }
             foreach ($options as $option) {
-                if (!isset($config[$parameter][$option])) {
-                    throw new \InvalidArgumentException("Invalid argument \"$option\"", 500);
+                if (!isset($this->config[$parameter][$option])) {
+                    throw new \InvalidArgumentException("Invalid option \"$option\"", 500);
                 }
             }
         }
@@ -111,13 +113,8 @@ class Kernel
      */
     protected function sendException(\Exception|\Error $e): void
     {
-        if (($_ENV["PRODUCTION"] ?? $this->config['application']['production']) === 'false') {
+        if (($_ENV["PRODUCTION"] ?? $this->config['app']['production']) === 'false') {
             view('debug', [
-                'status' => $e->getCode() !== 0 ? $e->getCode() : 'Undefined',
-                'message' => $e->getMessage()
-            ])->sendResponse();
-        } else {
-            view('status', [
                 'class' => get_class($e),
                 'status' => $e->getCode() !== 0 ? $e->getCode() : 'Undefined',
                 'message' => $e->getMessage(),
@@ -125,6 +122,11 @@ class Kernel
                 'file' => $e->getFile(),
                 'trace' => $e->getTrace()
             ])->sendResponse();
+        } else {
+            view('status', [
+                'status' => $e->getCode() !== 0 ? $e->getCode() : 'Undefined',
+                'message' => $e->getMessage()
+            ])->sendResponse(); 
         }
     }
 }

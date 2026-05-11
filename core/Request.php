@@ -73,6 +73,8 @@ class Request
      * Returns the relative url.
      * 
      * @throws \RuntimeException
+     * @todo Passing null to parameter #3 ($subject) of type array|string 
+     *       is deprecated on line 98
      */
     protected function getUrl(): string
     {
@@ -106,27 +108,26 @@ class Request
      * 
      * @throws \RuntimeException
      * @throws \JsonException
+     * @todo media type check
      */
     protected function getBody(): array
     {
         switch ($this->getMethod()) {
             case 'get':
-                $body = $_GET;
+                parse_str($_SERVER['QUERY_STRING'], $body);
                 break;
             case 'post':
-                $body = $_POST;
-                break;
             case 'patch':
             case 'put':
             case 'delete':
                 // Retrieve raw json
-                $json = file_get_contents('php://input');
+                $raw_json = file_get_contents('php://input');
+                // Turn raw json into a decoded associative array
+                $body = json_decode($raw_json, true);
                 // Handle json-related errors
-                if ($json === null) {
+                if ($body === null) {
                     throw new \JsonException('Invalid request body', 400);
                 }
-                // Turn raw json into a decoded associative array
-                $body = json_decode($json, true);
                 break;
             default:
                 throw new \RuntimeException('Unsupported request method', 500);
@@ -141,17 +142,15 @@ class Request
      * @see www.php.net/manual/en/function.getallheaders.php
      */
     protected function getHeaders(): array
-    { 
+    {
         $headers = [];
+        // Tranform HTTP_FOO_BAR to Foo-Bar
         foreach ($_SERVER as $name => $value) 
         {
             if (substr($name, 0, 5) == 'HTTP_') 
             {
                 $headers[str_replace(' ', '-', ucwords(strtolower(str_replace('_', ' ', substr($name, 5)))))] = $value;
             }
-        }
-        if (empty($headers)) {
-            throw new \RuntimeException('Headers not found', 400);
         }
         return $headers;
     }

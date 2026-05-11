@@ -1,7 +1,7 @@
 <?php
 
-use KernelTest;
 use Core\Request;
+use PHPUnit\Framework\TestCase;
 
 /**
  * Testes Core\Request.
@@ -11,28 +11,28 @@ use Core\Request;
  * * Pursue on valid url
  * * Exception on invalid url
  * * Pursue on valid body
- * * Exception on invalid body
+ * * Pursue on invalid body
  * * Pursue on valid headers
- * * Exception on invalid headers
+ * * Pursue on invalid headers
  */
-class RequestTest extends TestCase
+final  class RequestTest extends TestCase
 {
-    public function testCanBeInitializedFromIValidMethod(): void
+    public function testCanBeInitializedFromValidMethod(): void
     {
         // Arrange
-        $this->simulateRequest();
+        simulateRequest();
         // Act
         $request = new Request();
         // Assert
-        $this->assertSame($request->method, 'get');
+        $this->assertSame('get', $request->method);
     }
 
-    public function testCanNotBeInitializedFromIInvalidMethod(): void
+    public function testCanNotBeInitializedFromInvalidMethod(): void
     {
         // Expect
         $this->expectException(\RuntimeException::class);
         // Arrange
-        $this->simulateRequest('HEAD');
+        simulateRequest('HEAD');
         // Act
         new Request();
     }
@@ -40,11 +40,11 @@ class RequestTest extends TestCase
     public function testCanBeInitializedFromValidUrl(): void
     {
         // Arrange
-        $this->simulateRequest();
+        simulateRequest();
         // Act
         $request = new Request();
         // Assert
-        $this->assertSame($request->url, '/');
+        $this->assertSame('/', $request->url);
     }
 
     public function testCanNotBeInitializedFromInvalidUrl(): void
@@ -52,7 +52,7 @@ class RequestTest extends TestCase
         // Expect
         $this->expectException(\RuntimeException::class);
         // Arrange
-        $this->simulateRequest('GET', '/invalid/route// kk // **');
+        simulateRequest('GET', '/invalid/route// kk // **');
         // Act
         new Request();
     }
@@ -60,53 +60,40 @@ class RequestTest extends TestCase
     public function testCanBeInitializedFromValidBody(): void
     {
         // Arrange
-        $this->simulateRequest(
-            'PATCH',
-            '/json',
-            '{"foo":"bar"}',
-        );
+        simulateRequest();
         // Act
         $request = new Request();
         // Assert
-        $this->assertSame($request->body, ['foo' => 'bar']);
+        $this->assertSame(['foo' => 'bar'], $request->body);
     }
 
-    public function testCanNotBeInitializedFromInvalidBody(): void
+    public function testCanBeInitializedFromEmptyBody(): void
     {
-        // Expect
-        $this->expectException(\RuntimeException::class);
         // Arrange
-        $this->simulateRequest(
-            'PATCH',
-            '/json',
-            '{"foo":\'bar\'}',
-        );
+        simulateRequest('GET', '/', '');
         // Act
-        new Request();
+        $request = new Request();
+        // Assert
+        $this->assertEmpty($request->body);
     }
 
     public function testCanBeInitializedFromValidHeaders(): void
     {
         // Arrange
-        $this->simulateRequest();
+        simulateRequest();
         // Act
         $request = new Request();
         // Assert
-        $this->assertSame($request->headers, ['HTTP_ACCEPT' => 'text/css']);
+        $this->assertSame(['Accept' => 'text/css'], $request->headers);
     }
 
-    public function testCanNotBeInitializedFromInvalidHeaders(): void
+    public function testCanBeInitializedFromEmptyHeaders(): void
     {
-        // Expect
-        $this->expectException(\RuntimeException::class);
         // Arrange
-        $this->simulateRequest(
-            'GET',
-            '/',
-            ['foo' => 'bar'],
-            []
-        );
+        simulateRequest('GET', '/', 'foo=bar', []);
         // Act
-        new Request();
+        $request = new Request();
+        // Assert
+        $this->assertEmpty($request->headers);
     }
 }

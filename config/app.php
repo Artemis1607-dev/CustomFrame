@@ -14,6 +14,7 @@
 
 use Core\Kernel;
 
+if (php_sapi_name() !== 'cli') {
 $config = [
     'env' => [
         'relative_path' => __DIR__ . '/../'
@@ -36,8 +37,8 @@ $config = [
     'app' => [
         'production' => 'true',
         'routes' => routes()
-    ],
-
+    ]
 ];
 
 new Kernel($config)->handleRequest();
+}
