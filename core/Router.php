@@ -33,6 +33,12 @@ class Router
      */
     protected array $routes;
 
+    /** Holds the route's controller class. */
+    public object $controller;
+
+    /** Holds the route's controller action. */
+    public string $action;
+
     /**
      * Assigns the predefined routes.
      * 
@@ -151,9 +157,9 @@ class Router
         // Use a defined controller
         if (is_string($route->controller)) {
             // Render the corresponding view
-            $controller = new ($route->controller)();
-            $action = $route->action;
-            return $controller->$action($request, ...$request->dynamic);
+            $this->controller = new ($route->controller)();
+            $this->action = $action = $route->action;
+            return $this->controller->$action($request, ...$request->dynamic);
         }
         // Use anonymous controller
         return ($route->controller)($request, ...$request->dynamic);

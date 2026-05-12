@@ -62,45 +62,21 @@ class Request
      */
     protected function getMethod(): string
     {
-        $method = strtolower($_SERVER['REQUEST_METHOD']);
-        if (empty($method)) {
-            throw new \RuntimeException('Invalid request method', 400);
-        }
-        return $method;
+        return strtolower($_SERVER['REQUEST_METHOD']);
     }
 
-    /**
-     * Returns the relative url.
-     * 
-     * @throws \RuntimeException
-     * @todo Passing null to parameter #3 ($subject) of type array|string 
-     *       is deprecated on line 98
-     */
+    /** Returns the relative url. */
     protected function getUrl(): string
     {
-        // Retrieve
-        $raw_url = (($_ENV['PRODUCTION'] ?? true) === false
-            ? 'http://'
-            : 'https://')
-            . $_SERVER['SERVER_NAME']
-            . $_SERVER['REQUEST_URI'];
         // Normalize
-        $normalized_url = strtolower(trim($raw_url, ' /'));
-        // Validate (checks the whole url)
-        if (!filter_var(
-            $raw_url,
-            FILTER_VALIDATE_URL,
-            FILTER_FLAG_PATH_REQUIRED
-        )) {
-            throw new \RuntimeException('Invalid request URL', 400);
+        $normalized_url = strtolower(trim($_SERVER['REQUEST_URI'], ' /'));
+        // Validate
+        if ($normalized_url === '') {
+            return '/';
         }
-        // Sanitize (allow only single slashes, a-z, A-Z and 0-9)
-        $parsed_url = parse_url($normalized_url, PHP_URL_PATH);
-        $url = preg_replace('~[^\w/]+~', '', $parsed_url);
-        if ($url === '') {
-            return $url = '/';
-        }
-        return preg_replace('~/{2,}~', '/', $url);
+        // Sanitize
+        $sanitized_url = preg_replace('~[^\w/]+~', '', $normalized_url);
+        return preg_replace('~/{2,}~', '/', $sanitized_url);
     }
 
     /**
@@ -112,7 +88,7 @@ class Request
      */
     protected function getBody(): array
     {
-        switch ($this->getMethod()) {
+        switch ($this->method) {
             case 'get':
                 parse_str($_SERVER['QUERY_STRING'], $body);
                 break;
@@ -121,9 +97,9 @@ class Request
             case 'put':
             case 'delete':
                 // Retrieve raw json
-                $raw_json = file_get_contents('php://input');
+                $json = file_get_contents('php://input');
                 // Turn raw json into a decoded associative array
-                $body = json_decode($raw_json, true);
+                $body = json_decode($json, true);
                 // Handle json-related errors
                 if ($body === null) {
                     throw new \JsonException('Invalid request body', 400);
@@ -132,7 +108,7 @@ class Request
             default:
                 throw new \RuntimeException('Unsupported request method', 500);
         }
-        return !empty($body) ? $body : [];
+        return $body;
     }
 
     /** 

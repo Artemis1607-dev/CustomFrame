@@ -47,16 +47,6 @@ final  class RequestTest extends TestCase
         $this->assertSame('/', $request->url);
     }
 
-    public function testCanNotBeInitializedFromInvalidUrl(): void
-    {
-        // Expect
-        $this->expectException(\RuntimeException::class);
-        // Arrange
-        simulateRequest('GET', '/invalid/route// kk // **');
-        // Act
-        new Request();
-    }
-
     public function testCanBeInitializedFromValidBody(): void
     {
         // Arrange

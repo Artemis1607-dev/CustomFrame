@@ -202,9 +202,9 @@ class Route
         if (preg_match('~([\\\\a-zA-Z]+):([\w,]+)~', $middleware, $matches)) {
             $class = $matches['1'];
             $attributes = explode(',', $matches['2']);
-            $this->processMiddleware($class, $attributes);
+            $this->validateMiddleware($class, $attributes);
         } else {
-            $this->processMiddleware($middleware);
+            $this->validateMiddleware($middleware);
         }
     }
 
@@ -213,7 +213,7 @@ class Route
      * 
      * @throws \InvalidArgumentException
      */
-    protected function processMiddleware(string $middleware, array $attributes = []): void
+    protected function validateMiddleware(string $middleware, array $attributes = []): void
     {
         // Check whether the current class is valid
         if (!validate($middleware, 'filter')) {

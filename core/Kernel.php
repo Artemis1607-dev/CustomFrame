@@ -17,6 +17,15 @@ use eftec\bladeone\BladeOne;
  */
 class Kernel
 {
+    /** Stores the Core\Request instance. */
+    public Request $request;
+
+    /** Stores the Core\Router instance. */
+    public Router $router;
+
+    /** Stores the Core\Response instance. */
+    public Response $response;
+
     /** Stores the application's configuration. */
     protected array $config;
 
@@ -98,11 +107,11 @@ class Kernel
     /** Initializes the necessary classes for the request handling. */
     protected function loadClasses(): void
     {
-        $request = new Request();
-        $router = new Router($this->config['app']['routes']);
+        $this->request = new Request();
+        $this->router = new Router($this->config['app']['routes']);
 
-        $response = $router->resolveRoute($request);
-        $response->sendResponse();
+        $this->response = $this->router->resolveRoute($this->request);
+        $this->response->sendResponse();
     }
 
     /**
