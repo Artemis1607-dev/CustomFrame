@@ -4,86 +4,101 @@ use Core\Request;
 use PHPUnit\Framework\TestCase;
 
 /**
- * Testes Core\Request.
+ * Testes the following conditions:
  * 
- * * Pursue on valid method
- * * Exception on invalid method
- * * Pursue on valid url
- * * Exception on invalid url
- * * Pursue on valid body
- * * Pursue on invalid body
- * * Pursue on valid headers
- * * Pursue on invalid headers
+ * * Valid, Invalid, Empty method
+ * * Valid, Invalid, Empty URL
+ * * Valid, Invalid, Empty headers
+ * * Valid, Invalid, Empty body
  */
 final  class RequestTest extends TestCase
 {
-    public function testCanBeInitializedFromValidMethod(): void
+    public function testPursueOnValidRequest()
     {
+        // Expect
+        self::simulateRequest('GET', '/', 'foo=bar', [
+            'HTTP_ACCEPT' => 'text/css'
+        ]);
         // Arrange
-        simulateRequest();
-        // Act
         $request = new Request();
-        // Assert
+        // Act
         $this->assertSame('get', $request->method);
+        $this->assertSame('/', $request->url);
+        $this->assertSame(['foo' => 'bar'], $request->body);
+        $this->assertSame(['Accept' => 'text/css'], $request->headers);
     }
 
-    public function testCanNotBeInitializedFromInvalidMethod(): void
+    public function testFailOnInvalidMethod(): void
     {
         // Expect
         $this->expectException(\RuntimeException::class);
         // Arrange
-        simulateRequest('HEAD');
+        self::simulateRequest('HEAD');
         // Act
         new Request();
     }
 
-    public function testCanBeInitializedFromValidUrl(): void
+    public function testFailOnEmptyMethod(): void
+    {
+        // Expect
+        $this->expectException(\RuntimeException::class);
+        // Arrange
+        self::simulateRequest('');
+        // Act
+        new Request();
+    }
+
+    public function testPursueOnInvalidUrl(): void
     {
         // Arrange
-        simulateRequest();
+        self::simulateRequest('GET', 'foo/ ?? == // bar');
+        // Act
+        $request = new Request();
+        // Assert
+        $this->assertSame('foo/bar', $request->url);
+    }
+
+    public function testPursueOnEmptyUrl(): void
+    {
+        // Arrange
+        self::simulateRequest('GET', '');
         // Act
         $request = new Request();
         // Assert
         $this->assertSame('/', $request->url);
     }
 
-    public function testCanBeInitializedFromValidBody(): void
+    public function testPursueOnInvalidGetBody(): void
     {
         // Arrange
-        simulateRequest();
-        // Act
-        $request = new Request();
-        // Assert
-        $this->assertSame(['foo' => 'bar'], $request->body);
-    }
-
-    public function testCanBeInitializedFromEmptyBody(): void
-    {
-        // Arrange
-        simulateRequest('GET', '/', '');
+        self::simulateRequest('GET', '/', '=bar');
         // Act
         $request = new Request();
         // Assert
         $this->assertEmpty($request->body);
     }
 
-    public function testCanBeInitializedFromValidHeaders(): void
+    public function testPursueOnInvalidHeaders(): void
     {
         // Arrange
-        simulateRequest();
-        // Act
-        $request = new Request();
-        // Assert
-        $this->assertSame(['Accept' => 'text/css'], $request->headers);
-    }
-
-    public function testCanBeInitializedFromEmptyHeaders(): void
-    {
-        // Arrange
-        simulateRequest('GET', '/', 'foo=bar', []);
+        self::simulateRequest('GET', '/', 'foo=bar', ['FOO_BAR_HTTP' => 'BAZ']);
         // Act
         $request = new Request();
         // Assert
         $this->assertEmpty($request->headers);
+    }
+
+    /** Simulates a request for testing purposes. */
+    public static function simulateRequest(
+        string $method = 'GET',
+        string $url = '/',
+        string $body = '',
+        array $headers = []
+    ): void {
+        $_SERVER = $headers;
+        $_SERVER['REQUEST_METHOD'] = $method;
+        $_SERVER['REQUEST_URI'] = $url;
+        $_SERVER['SERVER_NAME'] = 'www.foo.com';
+        $_SERVER['QUERY_STRING'] = $body;
     }
 }

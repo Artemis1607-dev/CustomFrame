@@ -32,7 +32,7 @@ class Request
      * are passed to an associated controller as ...$array. To find out
      * more, you may refer to the the resource below:
      * 
-     * @see Core\Router
+     * @see \Core\Router
      */
     public array $dynamic = [];
 
@@ -51,12 +51,15 @@ class Request
     {
         $this->method = $this->getMethod();
         $this->url = $this->getUrl();
-        $this->body = $this->getBody();
         $this->headers = $this->getHeaders();
+        $this->body = $this->getBody();
     }
     
     /** 
      * Returns a normalized method.
+     * 
+     * Note that method validation is done with the switch 
+     * statement in getBody().
      * 
      * @throws \RuntimeException
      */
@@ -69,7 +72,7 @@ class Request
     protected function getUrl(): string
     {
         // Normalize
-        $normalized_url = strtolower(trim($_SERVER['REQUEST_URI'], ' /'));
+        $normalized_url = strtolower(trim($_SERVER['REQUEST_URI'], ' '));
         // Validate
         if ($normalized_url === '') {
             return '/';
@@ -115,7 +118,7 @@ class Request
      * Extracts an array with all the available HTTP headers. 
      *
      * @throws \RuntimeException
-     * @see www.php.net/manual/en/function.getallheaders.php
+     * @link https://www.php.net/manual/en/function.getallheaders.php
      */
     protected function getHeaders(): array
     {

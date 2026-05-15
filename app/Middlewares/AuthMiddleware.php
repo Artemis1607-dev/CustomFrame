@@ -20,9 +20,6 @@ class AuthMiddleware extends SessionWrapper
      *        Required in middleware chaining.
      * @param string $role
      *        Passed as a middleware parameter.
-     * @return \Closure $next
-     *         In fact, $next changes dynamically depending on
-     *         the middlewares assigned to the matched route.
      */
     public function filter(Request $request, \Closure $next, string $role)
     {

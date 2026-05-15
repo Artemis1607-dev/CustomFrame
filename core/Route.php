@@ -2,6 +2,8 @@
 
 namespace Core;
 
+use App\Middlewares\Middleware;
+
 /**
  * Defines the route structure.
  * 
@@ -10,7 +12,7 @@ namespace Core;
  * By default, the routes are required by Core\Router with
  * a helper function pointing to the configuration file below:
  * 
- * @see /config/routes.php
+ * @see ../config/routes.php
  */
 class Route
 {
@@ -23,7 +25,7 @@ class Route
     /**
      * Holds the route's controller.
      * 
-     * * Defined controller: [Controller::class => 'method]
+     * * Defined controller: [Controller::class => 'method']
      * * Anonymous controller: function(Core\Request $request): Core\Response {...}
      * 
      * @property array|callable $controller 
@@ -34,9 +36,10 @@ class Route
     /**
      * Holds the defined controller's method.
      * 
-     * Note that an anonymous controller cannot have an action.
+     * Note that an anonymous controller cannot have an action,
+     * in this particular case the action would be set to null.
      */
-    public string $action;
+    public ?string $action;
     
     /**
      * Stocks default middlewares applied to the routes.
@@ -58,14 +61,18 @@ class Route
      * arrays with the group name as a key and the middleware names 
      * in an associated array according to the key.
      */
-    protected array $groups = [];
+    protected array $groups = [
+        'middleware' => [
+            Middleware::class,
+        ]
+    ];
     
     /** Creates a new route with the provided parameters. */
     protected function __construct(
         string $method,
         string $url,
         string|callable $controller,
-        string $action
+        ?string $action
     ) {
         $this->method = $method;
         $this->url = $url;
@@ -138,6 +145,32 @@ class Route
         return self::setRoute($url, $controller, 'delete');
     }
     
+    /** 
+     * Helper function which creates a route.
+     * 
+     * @throws \InvalidArgumentException
+     */
+    protected static function setRoute(
+        string $url,
+        array|callable $controller,
+        string $method
+    ): self {
+        if (is_array($controller)) {
+            // Check whether the current class is valid
+            if (!validate(key($controller), current($controller))) {
+                throw new \InvalidArgumentException(
+                    '"' . key($controller) . '->' . current($controller) . '()" not found',
+                    500
+                );
+            }
+            // Create a route with a defined controller
+            return new self($method, $url, key($controller), current($controller));
+        } else {
+            // Create a route with an anonymous controller
+            return new self($method, $url, $controller, null);
+        }
+    }
+
     /** Adds stackable middlewares to a specified route. */
     public function middleware(string ...$middlewares): self
     {
@@ -169,39 +202,13 @@ class Route
         return $this;
     }
 
-    /** 
-     * Helper function which creates a route.
-     * 
-     * @throws \InvalidArgumentException
-     */
-    protected static function setRoute(
-        string $url,
-        array|callable $controller,
-        string $method
-    ): self {
-        if (is_array($controller)) {
-            // Check whether the current class is valid
-            if (!validate(key($controller), current($controller))) {
-                throw new \InvalidArgumentException(
-                    '"' . key($controller) . '->' . current($controller) . '()" not found',
-                    500
-                );
-            }
-            // Create a route with a defined controller
-            return new self($method, $url, key($controller), current($controller));
-        } else {
-            // Create a route with an anonymous controller
-            return new self($method, $url, $controller, '');
-        }
-    }
-
     /** Helper function which sets middlewares. */
     protected function setMiddleware(string $middleware): void
     {
         // Identify middleware parameters
         if (preg_match('~([\\\\a-zA-Z]+):([\w,]+)~', $middleware, $matches)) {
             $class = $matches['1'];
-            $attributes = explode(',', $matches['2']);
+            $attributes = explode(',', trim($matches['2'], ','));
             $this->validateMiddleware($class, $attributes);
         } else {
             $this->validateMiddleware($middleware);

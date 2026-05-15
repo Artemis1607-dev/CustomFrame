@@ -29,14 +29,27 @@ class Router
     /**
      * Holds the predefined routes.
      * 
-     * @see /config/routes.php
+     * It is possible to specify dublicated routes, however
+     * in case Core\Router->resolve() matches a route, only
+     * the first of the dublicated routes will be applied.
+     * 
+     * @see routes()
      */
     protected array $routes;
 
-    /** Holds the route's controller class. */
-    public object $controller;
+    /** 
+     * Holds the route's controller class.
+     * 
+     * @property array|callable $controller 
+     *           Accepts a defined or an anonymous controller.
+     */
+    public $controller;
 
-    /** Holds the route's controller action. */
+    /**
+     * Holds the route's controller action.
+     * 
+     * Note that an anonymous controller cannot have an action.
+     */
     public string $action;
 
     /**
@@ -44,13 +57,20 @@ class Router
      * 
      * For performance reasons, it is more efficient to group
      * the routes by their method.
+     * 
+     * @throws \LogicException
      */
     public function __construct(array $routes) 
     {
+        // Validate routes
+        if (empty($routes)) {
+            $type = gettype($routes) . '(' . count($routes). ')';
+            throw new \LogicException("Missing routes \"$type\"", 500);
+        }
         // Sort routes according to their method
         foreach ($routes as $route) {
             if (!($route instanceof Route)) {
-                throw new \LogicException("Use of unsupported class \"$route\"", 500);
+                throw new \LogicException("Unsupported route \"$route\"", 500);
             }
             $this->routes[$route->method][] = $route;
         }
@@ -162,6 +182,7 @@ class Router
             return $this->controller->$action($request, ...$request->dynamic);
         }
         // Use anonymous controller
-        return ($route->controller)($request, ...$request->dynamic);
+        $this->controller = $route->controller;
+        return ($this->controller)($request, ...$request->dynamic);
     }
 }

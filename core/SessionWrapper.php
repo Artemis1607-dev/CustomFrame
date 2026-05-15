@@ -9,9 +9,7 @@ use Josantonius\Session\Session;
  * 
  * Based on the work of Josantonius, this class is supplying
  * the middlewares with the necessary methods to control php
- * default sessions. Note that certain session data can
- * eventually turn null; interpret this as "unusable data"
- * according to the current session state.
+ * default sessions.
  * 
  * @link https://github.com/josantonius/php-session
  */
@@ -25,7 +23,7 @@ class SessionWrapper extends Session
      * 
      * @link https://www.php.net/manual/en/session.security.ini.php
      */
-    protected function __construct()
+    public function __construct()
     {
         $this->config = [
             // Cookies
@@ -47,7 +45,55 @@ class SessionWrapper extends Session
             'gc_divisor' => 100,
         ];
     }
+
+    /**
+     * Refreshes the ongoing session.
+     * 
+     * Note that so as to satisfy the "grace period" requirement,
+     * this method marks the old session as obsolete and the new one
+     * as unauthenticated. In order to preserve copyright, this concept 
+     * was implemented in the repository below:
+     * 
+     * @link https://github.com/tedivm/phpsessionmanager/blob/master/Session.class.php
+     */
+    public function refreshSession(): void
+    {
+        $this->throwExceptionIfSessionWasNotStarted();
+        // Mark current session as Obsolete
+        $this->markSessionObsolete();
+		// Create new session without destroying the old one
+		$this->regenerateId();
+		// Grab current session ID and close both sessions to allow other scripts to use them
+		$new_session_id = $this->getId();
+		session_commit();
+		// Set session ID to the new one, and start it back up again
+		$this->setId($new_session_id);
+		$this->start($this->config);
+		// Adjust the new session data
+        $this->markSessionUnauthorized();
+    }
     
+    /**
+     * Finishes the ongoing session.
+     * 
+     * Basically destroys the ongoing session and its cookie.
+     */
+    public function finishSession(): void
+    {
+        $this->throwExceptionIfSessionWasNotStarted();
+        // Delete instantly this session (keep in mind the network factor)
+        $this->clear();
+        $this->destroy();
+        // Unset session cookie
+        setcookie(session_name(), '', [
+            'expires' => time() - 3600,
+            'path' => '/',
+            'secure' => $_ENV['PRODUCTION'] ?? true,
+            'httponly' => true,
+            'samesite' => 'Lax',
+        ]);
+    }
+
     /**
      * (Re)authenticates a session.
      * 
@@ -55,11 +101,11 @@ class SessionWrapper extends Session
      * Moreover, this method is intended to be used by an AuthController 
      * in order to (re)authenticate a legitimate user.
      */
-    protected function markSessionActive(int $id, string $role): void
+    public function markSessionActive(int $id, string $role): void
     {
         $this->start($this->config);
         // Prevent injection
-        session_regenerate_id(true);
+        $this->regenerateId(true);
         // Mark current session as Active
         $_SESSION = [
             // Identification
@@ -67,7 +113,7 @@ class SessionWrapper extends Session
             // Expiration
             'last_activity' => time(),
             'created_at' => time(),
-            'obsolete_until' => null,
+            'obsolete_until' => 0,
             'obsolete' => false,
             // Hijacking
             'user_agent' => $_SERVER['HTTP_USER_AGENT'],
@@ -80,66 +126,19 @@ class SessionWrapper extends Session
         ];
     }
 
-    /**
-     * Refreshes the ongoing session.
-     * 
-     * Note that so as to satisfy the "grace period" requirement,
-     * this method marks the old session as obsolete and the new one
-     * as unauthenticated. Thus, this concept was well-implemented by
-     * the repository below:
-     * 
-     * @link https://github.com/tedivm/phpsessionmanager/blob/master/Session.class.php
-     */
-    protected function refreshSession(): void
-    {
-        // Mark current session as Obsolete
-        $this->markSessionObsolete();
-		// Create new session without destroying the old one
-		session_regenerate_id();
-		// Grab current session ID and close both sessions to allow other scripts to use them
-		$new_session_id = session_id();
-		session_commit();
-		// Set session ID to the new one, and start it back up again
-		session_id($new_session_id);
-		$this->start($this->config);
-		// Adjust the new session data
-        $this->markSessionUnauthorized();
-    }
-    
-    /**
-     * Finishes the ongoing session.
-     * 
-     * Basically, forcefully destroys the ongoing session  and its cookie.
-     */
-    protected function finishSession(): void
-    {
-        $this->throwExceptionIfSessionWasNotStarted();
-        // Delete instantly this session (keep in mind the network factor)
-        session_unset();
-        session_destroy();
-        // Unset session cookie
-        setcookie(session_name(), '', [
-            'expires' => time() - 3600,
-            'path' => '/',
-            'secure' => $_ENV['PRODUCTION'] ?? true,
-            'httponly' => true,
-            'samesite' => 'Lax',
-        ]);
-    }
-
     /** Marks a session as obsolete. */
     protected function markSessionObsolete(): void
     {
         $this->throwExceptionIfSessionWasNotStarted();
 
-        $_SESSION['last_activity'] = null;
-        $_SESSION['created_at'] = null;
+        $_SESSION['last_activity'] = 0;
+        $_SESSION['created_at'] = 0;
 
         $_SESSION['obsolete_until'] = time() + $_ENV['OBSOLETE_LIFETIME'] * 60;
         $_SESSION['obsolete'] = true;
 
         $_SESSION['auth'] = false;
-        $_SESSION['auth_until'] = null;
+        $_SESSION['auth_until'] = 0;
     }
 
     /** Marks a session as unauthorized. */
@@ -150,11 +149,11 @@ class SessionWrapper extends Session
         $_SESSION['last_activity'] = time();
         $_SESSION['created_at'] = time();
 
-		$_SESSION['obsolete_until'] = null;
+		$_SESSION['obsolete_until'] = 0;
         $_SESSION['obsolete'] = false;
 
         $_SESSION['auth'] = false;
-        $_SESSION['auth_until'] = null;
+        $_SESSION['auth_until'] = 0;
     }
 
     /** Marks a session as hijacked. */
@@ -164,7 +163,7 @@ class SessionWrapper extends Session
 
         $_SESSION['hijacked'] = true;
         $_SESSION['auth'] = false;
-        $_SESSION['auth_until'] = null;
+        $_SESSION['auth_until'] = 0;
     }
 
     /** 
@@ -174,7 +173,7 @@ class SessionWrapper extends Session
      */
     protected function throwExceptionIfSessionWasNotStarted(): void
     {
-        if (session_status() !== 2) {
+        if (!$this->isStarted()) {
             throw new \RuntimeException('Session not started', 500);
         }
     }

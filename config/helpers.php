@@ -15,7 +15,7 @@ use Core\Response;
 function routes(): array
 {
     if (!file_exists(__DIR__ . '/routes.php')) {
-        throw new LogicException('File with routes is missing', 500);
+        throw new LogicException('Routes not found', 500);
     }
     return require_once __DIR__ . "/routes.php";
 }
@@ -54,18 +54,4 @@ function prepareFile(string $path): Response
 function redirect(string $url, int $status): Response 
 {
     return Response::prepareRedirect($url, $status);
-}
-
-/** Simulates a request for testing purposes. */
-function simulateRequest(
-    string $method = 'GET',
-    string $url = '/',
-    string $body = 'foo=bar',
-    array $headers = ['HTTP_ACCEPT' => 'text/css']
-): void {
-    $_SERVER = $headers;
-    $_SERVER['REQUEST_METHOD'] = $method;
-    $_SERVER['REQUEST_URI'] = $url;
-    $_SERVER['SERVER_NAME'] = 'www.foo.com';
-    $_SERVER['QUERY_STRING'] = $body;
 }

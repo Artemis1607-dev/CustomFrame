@@ -68,19 +68,20 @@ class Response
      * Prepares a json response to the client.
      * 
      * @param array $json_decoded
-     *        Acceptes a decoded associative json array.
+     *        Acceptes a decoded associative array supported by json.
      * @throws \JsonException
      * @throws \OutOfRangeException
      */
     public static function prepareJson(
         array $json_decoded,
+        int $array_depth = 512,
         int $status = 100
     ): self {
         if ($status >= 300 && $status <= 399 || $status > 499) {
             throw new \OutOfRangeException("Invalid status code", 500);
         }
 
-        $json_encoded = json_encode($json_decoded);
+        $json_encoded = json_encode($json_decoded, 0, $array_depth);
         if ($json_encoded === false) {
             throw new \JsonException('Invalid response body', 500);
         }
@@ -96,7 +97,7 @@ class Response
      * 
      * @param string $relative_path
      *        Accepts a relative path pointing to an existant file.
-     * @throws \RuntimeException
+     * @throws \LogicException
      * @throws \OutOfRangeException
      */
     public static function prepareFile(
@@ -107,7 +108,7 @@ class Response
             throw new \OutOfRangeException("Invalid status code", 500);
         }
         if (!file_exists($relative_path)) {
-            throw new \RuntimeException('File not found', 404);
+            throw new \LogicException('File not found', 404);
         }
         $response = new self(file_get_contents($relative_path), $status);
         return $response
@@ -162,8 +163,7 @@ class Response
      * Sends a response to the client.
      *
      * @param bool $stream
-     *        ToDo: in case set to true, enable
-     *        post-request exchange.
+     * @todo In case set to true, enable post-request exchange.
      */
     public function sendResponse(bool $stream = false): void
     {

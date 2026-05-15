@@ -12,8 +12,6 @@ use eftec\bladeone\BladeOne;
  * The purpose of Kernel is to load the configuration, integrate the 
  * dependencies and to connect all the classes processing the incoming 
  * request, also monitoring for any exceptions.
- * 
- * @todo Make possible to render $this->throwExceptionOverInvalidConfig()
  */
 class Kernel
 {
@@ -27,12 +25,13 @@ class Kernel
     public Response $response;
 
     /** Stores the application's configuration. */
-    protected array $config;
+    public array $config;
 
     /** Assigns the application's configuration. */
     public function __construct(array $config)
     {
         $this->config = $config;
+        $this->validateConfig();
     }
 
     /** 
@@ -45,7 +44,6 @@ class Kernel
     public function handleRequest(): void
     {
         try {
-            $this->throwExceptionOverInvalidConfig();
             $this->loadDependencies();
             $this->loadClasses();
         } catch (\Exception|\Error $e) {
@@ -54,21 +52,21 @@ class Kernel
     }
 
     /** 
-     * Initializes the defined dependencies with the provided config. 
+     * Initializes dependencies with the provided config. 
      * 
      * Note that the configuration provided within dotenv overrides
      * the default configuration defined in the file below:
      * 
-     * @see config/app.php
+     * @see ../config/app.php
      */
-    protected function loadDependencies(): void
+    public function loadDependencies(): void
     {
-        Dotenv::createImmutable($this->config['env']['relative_path'])->load();
-
         new BladeOne(
             $this->config['compiler']['views_path'],
             $this->config['compiler']['cache_path']
         );
+
+        Dotenv::createImmutable($this->config['env']['relative_path'])->load();
 
         new ModelWrapper(
             $_ENV['HOSTNAME'] ?? $this->config['database']['hostname'],
@@ -83,29 +81,31 @@ class Kernel
      * 
      * @throws \InvalidArgumentException
      */
-    protected function throwExceptionOverInvalidConfig(): void
+    protected function validateConfig(): void
     {
+        if (empty($this->config)) {
+            throw new \InvalidArgumentException("Missing configuration ", 500);
+        }
         $valid_parameters = [
             'env' => ['relative_path'],
             'database' => ['hostname', 'username', 'password', 'database'],
             'compiler' => ['views_path', 'cache_path'],
             'app' => ['production', 'routes']
         ];
-        
         foreach ($valid_parameters as $parameter => $options) {
             if(!isset($this->config[$parameter]) || !is_array($this->config[$parameter])) {
-                throw new \InvalidArgumentException("Invalid parameter \"$parameter\"", 500);
+                throw new \InvalidArgumentException("Missing/Invalid parameter \"$parameter\"", 500);
             }
             foreach ($options as $option) {
                 if (!isset($this->config[$parameter][$option])) {
-                    throw new \InvalidArgumentException("Invalid option \"$option\"", 500);
+                    throw new \InvalidArgumentException("Missing/Invalid option \"$option\"", 500);
                 }
             }
         }
     }
 
     /** Initializes the necessary classes for the request handling. */
-    protected function loadClasses(): void
+    public function loadClasses(): void
     {
         $this->request = new Request();
         $this->router = new Router($this->config['app']['routes']);

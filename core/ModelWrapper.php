@@ -10,12 +10,8 @@ namespace Core;
  */
 class ModelWrapper
 {
-    /**
-     * Holds the last instance of the database object.
-     * 
-     * @property object $instance Injection variable
-     */
-    public static \mysqli $instance;
+    /** Holds the \mysqli last connection instance. */
+    protected \mysqli $instance;
 
     /** 
      * Establishes a database connection.
@@ -37,8 +33,8 @@ class ModelWrapper
             && !empty($password)
             && !empty($database)
         ) {
-            self::$instance = new \mysqli($hostname, $username, $password, $database);
-            if (self::$instance->connect_error) {
+            $this->instance = new \mysqli($hostname, $username, $password, $database);
+            if ($this->instance->connect_error) {
                 throw new \PDOException('Database temporarly unavailable', 500);
             }
         }

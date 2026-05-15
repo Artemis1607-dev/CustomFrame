@@ -9,7 +9,7 @@
  * separate files, providing a great organisation in terms of
  * dependency and application configuration.
  * 
- * @see Core\Kernel
+ * @see \Core\Kernel
  */
 
 use Core\Kernel;
