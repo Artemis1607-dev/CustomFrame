@@ -8,7 +8,7 @@
  * 
  * @author Ivanov Artem
  * @copyright MIT Licence
- * @version 0.0.0
+ * @version 1.0.0
  */
 
 require_once __DIR__ . '/../vendor/autoload.php';
