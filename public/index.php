@@ -6,7 +6,7 @@
  * For additional security, the public folder has to be isolated
  * from the codebase which is currently implemented with composer.
  * 
- * @author artem.ivanov1607@gmail.com
+ * @author Ivanov Artem
  * @copyright MIT Licence
  * @version 0.0.0
  */
