@@ -3,134 +3,134 @@
 namespace Core;
 
 /**
- * Provides information on an incoming request.
+ * Provides an object-oriented request reference.
  * 
  * The purpose of Request is to identify and to provide 
- * all the necessary information on an incoming request.
+ * all the necessary information on the incoming request.
  */
 class Request
 {
-    /**
-     * Holds the method of a request.
-     */
+    /** Holds the request method. */
     public string $method;
 
-    /**
-     * Holds the url of a request.
-     */
+    /** Holds the request URL. */
     public string $url;
 
-    /**
-     * Holds the body of a request.
-     */
+    /** Holds the request body. */
     public array $body;
 
-    /**
-     * Holds the headers of a request.
-     */
+    /** Holds the request headers. */
     public array $headers;
 
     /**
      * Holds the dynamic variables of a request.
      * 
-     * @see \Core\Router->resolve()
+     * This feature enables the user to utilize the dynamic
+     * routes. Conceptually, it is intended to avoid overcharging
+     * the query or access a specific resource in the OOP context.
+     * In practice, in case a dynamic route isdetected, the parameters 
+     * are passed to an associated controller as ...$array. To find out
+     * more, you may refer to the the resource below:
+     * 
+     * @see \Core\Router
      */
     public array $dynamic = [];
 
     /**
      * Transmitted information from middlewares to a controller.
+     * 
+     * Sometimes middlewares have to supply the controller with
+     * additonal information, so as to modify a certain behaviour.
+     * This can be done easily by setting custom attributes in
+     * middlewares and getting them in controllers.
      */
     public array $attributes = [];
     
-    /**
-     * Extracts the information of a request 
-     * and assigns it to the properties.
-     */
+    /** Sets the request information. */
     public function __construct()
     {
-        $this->method = self::getMethod();
-        $this->url = self::getUrl();
-        $this->body = self::getBody();
-        $this->headers = self::getHeaders();
+        $this->method = $this->getMethod();
+        $this->url = $this->getUrl();
+        $this->headers = $this->getHeaders();
+        $this->body = $this->getBody();
     }
     
-    /**
+    /** 
      * Returns a normalized method.
+     * 
+     * Note that method validation is done with the switch 
+     * statement in getBody().
+     * 
+     * @throws \RuntimeException
      */
-    protected static function getMethod(): string
+    protected function getMethod(): string
     {
-        // Retreive and normalize
-        $method = strtolower($_SERVER['REQUEST_METHOD']);
-        if (!empty($method)) {
-            return $method;
-        }
-        throw new \RuntimeException('Method not found', 400);
+        return strtolower($_SERVER['REQUEST_METHOD']);
     }
 
-    /**
-     * Returns the relative url according to
-     * the PHP_URL_PATH specification.
-     * 
-     * @link https://www.php.net/manual/fr/function.parse-url.php
-     */
-    protected static function getUrl(): string
+    /** Returns the relative url. */
+    protected function getUrl(): string
     {
-        // Retrieve
-        $raw_url = (empty($_SERVER['HTTPS'])
-            ? 'http://'
-            : 'https://')
-            . $_SERVER['SERVER_NAME']
-            . $_SERVER['REQUEST_URI'];
+        // Normalize
+        $normalized_url = strtolower(trim($_SERVER['REQUEST_URI'], ' '));
         // Validate
-        if (filter_var(
-            $raw_url,
-            FILTER_VALIDATE_URL,
-            FILTER_FLAG_PATH_REQUIRED
-        )) {
-            // Normalize
-            $normalized_url = strtolower(trim($raw_url, '/')); 
-            // Sanitize
-            $parsed_url = parse_url($normalized_url, PHP_URL_PATH);
-            $url = preg_replace('~[^\w/]+~', '', $parsed_url);
-            if ($url === '') {
-                return $url = '/';
-            }
-            return preg_replace('~/{2,}~', '/', $url);
+        if ($normalized_url === '') {
+            return '/';
         }
-        throw new \RuntimeException('URL not valid', 400);
+        // Sanitize
+        $sanitized_url = preg_replace('~[^\w/]+~', '', $normalized_url);
+        return preg_replace('~/{2,}~', '/', $sanitized_url);
     }
 
     /**
      * Returns an array of transmitted parameters.
      * 
-     * According to the documentation, query parameters are
-     * from now accessible with the $_GET superglobal.
+     * @throws \RuntimeException
+     * @throws \JsonException
+     * @todo media type check
      */
-    protected static function getBody(): array
+    protected function getBody(): array
     {
-        switch (self::getMethod()) {
+        switch ($this->method) {
             case 'get':
-                $body = $_GET;
+                parse_str($_SERVER['QUERY_STRING'], $body);
                 break;
             case 'post':
-                $body = $_POST;
-                break;
             case 'patch':
             case 'put':
             case 'delete':
-                $body = json_decode(file_get_contents('php://input'), true);
+                // Retrieve raw json
+                $json = file_get_contents('php://input');
+                // Turn raw json into a decoded associative array
+                $body = json_decode($json, true);
+                // Handle json-related errors
+                if ($body === null) {
+                    throw new \JsonException('Invalid request body', 400);
+                }
                 break;
             default:
-                throw new \RuntimeException('Method not supported', 400);
+                throw new \RuntimeException('Unsupported request method', 500);
         }
-        return $body ?? [];
+        return $body;
     }
 
-    /**
-     * Extracts an array with all the available HTTP headers.
+    /** 
+     * Extracts an array with all the available HTTP headers. 
+     *
+     * @throws \RuntimeException
+     * @link https://www.php.net/manual/en/function.getallheaders.php
      */
-    protected static function getHeaders(): array
+    protected function getHeaders(): array
     {
-        return getallheaders();
+        $headers = [];
+        // Tranform HTTP_FOO_BAR to Foo-Bar
+        foreach ($_SERVER as $name => $value) 
+        {
+            if (substr($name, 0, 5) == 'HTTP_') 
+            {
+                $headers[str_replace(' ', '-', ucwords(strtolower(str_replace('_', ' ', substr($name, 5)))))] = $value;
+            }
+        }
+        return $headers;
     }
 }

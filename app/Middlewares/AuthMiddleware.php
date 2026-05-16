@@ -6,37 +6,69 @@ use App\Exceptions\SessionException;
 use Core\Request;
 use Core\SessionWrapper;
 
+/**
+ * Provides an additional layer of session security.
+ * 
+ * Note that this middleware requires an active session.
+ */
 class AuthMiddleware extends SessionWrapper
 {
-    
-    public function filter(Request $request, \Closure $next, $role)
+    /**
+     * @param Request $request
+     *        Passed as request from \Core\Router.
+     * @param \Closure $next
+     *        Required in middleware chaining.
+     * @param string $role
+     *        Passed as a middleware parameter.
+     */
+    public function filter(Request $request, \Closure $next, string $role)
     {
         try {
             return $this->handleAuth($request, $next, $role);
         } catch (SessionException $e) {
-            view('login', ['error' => $e->getCode() . ' ' . $e->getMessage(),])
-            ->send();
+            view('login', [
+                'error' => $e->getCode() . ' ' . $e->getMessage(),
+            ])->sendResponse();
         }
     }
 
+    /**
+     * Validates session role and auth-flag.
+     * 
+     * Once the session is evaluated as active and/or hijacked,
+     * certain routes can be protected with role-checking or auth-flag
+     * validation. That said, this method will check for a defined role
+     * parameter extracted from "AuthMiddleware:role" and validate the
+     * auth and auth_until session flags to ensure correct handling of
+     * re-authentication or hijacking conditions.
+     * 
+     * @param Request $request
+     *        Passed as request from \Core\Router.
+     * @param \Closure $next
+     *        Required in middleware chaining.
+     * @param string $role
+     *        Passed as a middleware parameter.
+     * @throws SessionException
+     * @return \Closure $next
+     *         In fact, $next changes dynamically depending on
+     *         the middlewares assigned to the matched route.
+     */
     protected function handleAuth(Request $request, \Closure $next, string $role)
     {
-        // Role checking
         if ($_SESSION['role'] !== $role) {
-            throw new SessionException('Forbidden', 403);
-        }
-        // Mark the session as Unauthorized
-        if ($_SESSION['auth_until'] < time()) {
-            $_SESSION['auth'] = false;
+            throw new SessionException('Unsuficient permissions', 403);
         }
 
         if ($_SESSION['auth'] === false) {
             if (in_array($request->method, ['get'])) {
                 $request->attributes['auth'] = false;
             } else {
-                throw new SessionException('Re-authenticate');
+                throw new SessionException('Re-authentication required', 403);
             }
+        } elseif ($_SESSION['auth_until'] < time()) {
+            $_SESSION['auth'] = false;
         }
+        // Pursue the chaining
         return $next($request);
     }
 }

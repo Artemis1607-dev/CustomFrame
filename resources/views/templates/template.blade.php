@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="auto" theme="auto">
 <head>
-	<title>{{ $title }}</title>
+	<title>Hello</title>
 	<meta name="keywords" content="PHP, Laravel, Framework"> <!-- Keywords -->	
 	<meta name="description" content="CustomFrame"> <!-- Description -->
 	<meta name="author" content="Artem Ivanov"> <!-- Author -->
@@ -9,19 +9,10 @@
 	<meta name="viewport" content="width=device-width, initial-scale=1.0"> <!-- Device support -->
 	<!-- <link rel="stylesheet" href="app.css"> CSS -->
 	<!-- <script src="app.js"></script> JS -->
-    <style>
-        form {
-            padding: 0,5rem;
-        }
-        form * {
-            display: block;
-            padding: 0.5rem 0 0.5rem 0;
-        }
-    </style>
 </head>
 <body>
-    @include('components/header.blade.php')
+    @include('components/foo.blade.php')
     @yield('content')
-    @include('components/footer.blade.php')
+    @include('components/bar.blade.php')
 </body>
 </html>

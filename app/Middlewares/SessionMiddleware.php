@@ -3,109 +3,188 @@
 namespace App\Middlewares;
 
 use Core\{SessionWrapper, Request};
-use App\Interfaces\Middleware;
 use App\Exceptions\SessionException;
 
 /**
  * Handles default php sessions.
  * 
  * This class is supposed to handle different session states under condition
- * of an already valid session cookie and session data. In other words, 
- * this middleware requires two things: 
- * a non-empty and a valid cookie a valid, an active, not hijacked, not expired
+ * of an already valid session cookie and session data. In other words, it
+ * is responsible to handle the following conditions:
  * 
  * * Session cookie: non-empty and valid
- * * Session data: valid, active, not hijacked, not expired and not obsolete 
- * (only GET requests are allowed during the transition phase)
+ * * Session data: valid, active, not obsolete, not expired and not hijacked
  * 
- * Thus, this middleware requires a dedicated controller whose role would be
- * to create, on successful login, valid sessions including this data:
+ * Moreover, this middleware requires an AuthController, whose role is to
+ * to create, on successful login, active sessions including the session 
+ * data explained below:
  * 
- * * user_id: associated id to the user
- * * role: associated role to the user
- * * ip_address: remote IP address
- * * user_agent: remote browser
- * * last_activity: expiration dynamic limit
+ * * user_id: associated id to the user's database entry
+ * * role: associated role to the user's database entry
+ * * ip_address: remote IP-address
+ * * user_agent: remote user-agent
+ * * last_activity: dynamic expiration limit
+ * * created_at: static expiration limit
  * * obsolete: obsolescence indicator
  * * obsolete_until: obsolescence static limit
  * * auth: authentication indicator
  * * auth_until: authentication static limit
- * * hijacked: security metadata
+ * * hijacked: metadata of hijacked state
  */
 class SessionMiddleware extends SessionWrapper
 {
+    /**
+     * @param Request $request
+     *        Passed as request from \Core\Router.
+     * @param \Closure $next
+     *        Required in middleware chaining.
+     */
     public function filter(Request $request, \Closure $next)
     {
         try {
-            return $this->handleSession($request, $next);
+            $this->handleSession($request, $next);
         } catch (SessionException $e) {
-            view('login', ['error' => $e->getCode() . ' ' . $e->getMessage(),])
-            ->send();
+            view('login', [
+                'error' => $e->getCode() . ' ' . $e->getMessage(),
+            ])->sendResponse();
         }
     }
 
+    /**
+     * Handles different session states. Following states are implemented
+     * and validated in the respective order:
+     * 
+     * * (In)valid
+     * * (In)active
+     * * (Not) Obsolete
+     * * (Not) Expired
+     * * (Not) Hijacked
+     * @param Request $request
+     *        Passed as request from \Core\Router.
+     * @param \Closure $next
+     *        Required in middleware chaining.
+     * @throws SessionException
+     */
     protected function handleSession(Request $request, \Closure $next)
     {
         $this->start($this->config);
-        // In case not Valid
-        if ($this->returnTrueIfSessionIsNotValid()) {
-            throw new SessionException('Session is invalid');
+        // Validate session
+        if (self::returnTrueIfSessionIsNotValid()) {
+            throw new SessionException('Re-authentication required', 401);
         }
-        // In case not Active
-        if ($this->returnTrueIfSessionIsNotActive()) {
+        if (self::returnTrueIfSessionIsNotActive()) {
             $this->finishSession();
-            throw new SessionException('Session is inactive');
+            throw new SessionException('Re-authentication required', 403);
         }
-        // In case Obsolete
-        if ($this->returnTrueIfSessionIsObsolete()) {
-            // Since auth is false in the obsolete state, only get requests are accepted
-            return $this->preventFromHijacking($request, $next);
+        if (self::returnTrueIfSessionIsObsolete()) {
+            return $this->preventSessionHijacking($request, $next);
         }
-        // In case Expired
-        if ($this->returnTrueIfSessionIsExpired()) {
+        if (self::returnTrueIfSessionIsExpired()) {
             $this->refreshSession();
-            return $this->preventFromHijacking($request, $next);
+            return $this->preventSessionHijacking($request, $next);
         }
         // Normal flow
         $_SESSION['last_activity'] = time();
-        return $this->preventFromHijacking($request, $next);
+        return $this->preventSessionHijacking($request, $next);
     }
 
-    protected function returnTrueIfSessionIsNotValid(): bool
-    {
-        return empty($_SESSION);
-    }
-
-    protected function returnTrueIfSessionIsNotActive(): bool
-    {
-        return $_SESSION['obsolete_until'] <= time()
-            && $_SESSION['obsolete'] === true;
-    }
-
-    protected function returnTrueIfSessionIsExpired(): bool
-    {
-        return $_SESSION['last_activity'] <= time() - $_ENV['DYNAMIC_LIFETIME']
-            || time() - $_SESSION['created_at'] > $_ENV['STATIC_LIFETIME'];
-    }
-
-    protected function returnTrueIfSessionIsObsolete(): bool
-    {
-        return $_SESSION['obsolete'] === true;
-    }
-
-    protected function preventFromHijacking(Request $request, \Closure $next)
+    /**
+     * Provides an additional security layer based on the hijacking state.
+     * 
+     * Note that in case hijacking is detected, the session turns unauthenticated
+     * and hijacked at once. In practice, it would require the user to relogin
+     * unless he wills to use GET routes within the expiration limitations.
+     * Considering the inconsistance of certain network interfaces, instead of
+     * force quit on IP or UA anomalies, it is more user-friendly to notify about
+     * the potential attack and suggest to finish the ongoing session and relogin. 
+     * 
+     * @param Request $request
+     *        Passed as request from \Core\Router.
+     * @param \Closure $next
+     *        Required in middleware chaining.
+     * @return \Closure $next
+     *         In fact, $next changes dynamically depending on
+     *         the middlewares assigned to the matched route.
+     */
+    protected function preventSessionHijacking(Request $request, \Closure $next)
     {
         if ($_SESSION['ip_address'] === $_SERVER['REMOTE_ADDR']
             && $_SESSION['user_agent'] === $_SERVER['HTTP_USER_AGENT']
         ) {
             return $next($request);
         } else {
-            // Handle in the AuthMiddleware
-            $_SESSION['hijacked'] = true;
-            // Optionally remove any trust
-            $_SESSION['auth'] = false;
-            $_SESSION['auth_until'] = null;
+            $this->markSessionHijacked();
+            // Pursue the chaining
             return $next($request);
         }
+    }
+
+    /**
+     * Rejects request in case the session is invalid.
+     * 
+     * Valid state concerns the session id and the session data.
+     * Futhermore, it is mandatory to use an existant session id with
+     * the respectively associated data. For instance, let's take two cases:
+     * 
+     * * In case a user initializes a session with the dedicated AuthController,
+     * the session id and the session data is considered as valid since the
+     * id is existant and points to non-empty data.
+     * * In case a user modified or provided a custom session id, it wouldn't
+     * be recognized by the server since the id is unexistant and as a 
+     * consequence points to empty data.
+     */
+    public static function returnTrueIfSessionIsNotValid(): bool
+    {
+        return empty($_SESSION);
+    }
+
+    /**
+     * Finishes the session in case it is inactive.
+     * 
+     * In the current configuration, active state is considered
+     * as a combination of not obsolete and not expired states.
+     * Besides the expired state, the obsolete state is used to 
+     * satisfy the "grace period" described in the link below.
+     * 
+     * @link https://www.php.net/manual/en/features.session.security.management.php#features.session.security.management.non-adaptive-session
+     */
+    public static function returnTrueIfSessionIsNotActive(): bool
+    {
+        return $_SESSION['obsolete_until'] <= time()
+            && $_SESSION['obsolete'] === true;
+    }
+
+    /**
+     * Refreshes the session in case it is expired
+     * 
+     * By default, a session has to follow certain expiration rules.
+     * That said, we dispose of a static and a dynamic metadata, which
+     * defines the expiration of an ongoing session. Basically, the obsolete
+     * flag gets updated with each succesful request and the created_at gets
+     * updated only on a successful relogin, however both are used to ensure
+     * that the session is always up-to-date. Additionally, to learn more 
+     * about session refreshing, follow the class below:
+     * 
+     * @see \Core\SessionWrapper
+     */
+    public static function returnTrueIfSessionIsExpired(): bool
+    {
+        return $_SESSION['last_activity'] <= time() - $_ENV['DYNAMIC_LIFETIME'] * 3600
+            || time() - $_SESSION['created_at'] > $_ENV['STATIC_LIFETIME'] * 3600;
+    }
+
+    /**
+     * Accepts a request in case the request method is get.
+     * 
+     * Note that before the session reaches this condition, the
+     * obsolete_until has to be at the most 1 minute old. Otherwise,
+     * the session would be finished and the request rejected.
+     * 
+     * * Request method: get
+     * * obsolete_until: not expired
+     */
+    public static function returnTrueIfSessionIsObsolete(): bool
+    {
+        return $_SESSION['obsolete'] === true;
     }
 }

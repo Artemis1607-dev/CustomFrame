@@ -2,103 +2,140 @@
 
 namespace Core;
 
-use Core\Response;
 use Dotenv\Dotenv;
 use Core\ModelWrapper;
 use eftec\bladeone\BladeOne;
 
 /**
- * Manages the configuration of dependencies and handles exceptions.
+ * Connects the central dependencies and classes.
  * 
- * The purpose of Kernel is load the configuration of dependencies 
- * and to connect all the classes processing an incoming request, 
- * monitoring for any exceptions.
+ * The purpose of Kernel is to load the configuration, integrate the 
+ * dependencies and to connect all the classes processing the incoming 
+ * request, also monitoring for any exceptions.
  */
 class Kernel
 {
-    /** 
-     * This property is used to store the available 
-     * configuration from dependencies 
-     */
-    protected array $config;
+    /** Stores the Core\Request instance. */
+    public Request $request;
 
-    /**
-     * Assigns the configuration of dependecies.
-     */
-    public function __construct(array $config) 
+    /** Stores the Core\Router instance. */
+    public Router $router;
+
+    /** Stores the Core\Response instance. */
+    public Response $response;
+
+    /** Stores the application's configuration. */
+    public array $config;
+
+    /** Assigns the application's configuration. */
+    public function __construct(array $config)
     {
         $this->config = $config;
+        $this->validateConfig();
     }
 
-    /**
-     * Boots the application and monitors for any Throwables.
+    /** 
+     * Central element in the request handling.
+     * 
+     * Note that this method possesses a large responsibility
+     * vector, since it's supposed to load the dependencies,
+     * the configuration and the classes.
      */
-    public function bootApplication(): void
+    public function handleRequest(): void
     {
         try {
-            // Handle request
-            Kernel::loadDependencies($this->config);
-            Kernel::loadClasses();
+            $this->loadDependencies();
+            $this->loadClasses();
         } catch (\Exception|\Error $e) {
-            // Send Exception Response
-            Kernel::sendException($e);
+            $this->sendException($e);
         }
     }
 
     /** 
-     * Initializes the necessary classes for Request handling.
+     * Initializes dependencies with the provided config. 
+     * 
+     * Note that the configuration provided within dotenv overrides
+     * the default configuration defined in the file below:
+     * 
+     * @see ../config/app.php
      */
-    protected static function loadClasses(): void
+    public function loadDependencies(): void
     {
-        // Initialize Request and Router
-        $request = new Request();
-        $router = new Router();
-        // Process the request
-        $response = $router->resolve($request);
-        $response->send();
-    }
-
-    protected static function loadDependencies($config): void
-    {
-        // Initialize Dotenv
-        Dotenv::createImmutable($config['dotenv']['relative_path'])->load();
-        // Initialize Model
-        new ModelWrapper(
-            $_ENV['HOSTNAME'] ?? $config['modelwrapper']['hostname'],
-            $_ENV['USERNAME'] ?? $config['modelwrapper']['username'],
-            $_ENV['PASSWORD'] ?? $config['modelwrapper']['password'],
-            $_ENV['DATABASE'] ?? $config['modelwrapper']['database']
-        );
-        // Initialize View
         new BladeOne(
-            $config['bladeone']['views_path'],
-            $config['bladeone']['cache_path']
+            $this->config['compiler']['views_path'],
+            $this->config['compiler']['cache_path']
+        );
+
+        Dotenv::createImmutable($this->config['env']['relative_path'])->load();
+
+        new ModelWrapper(
+            $_ENV['HOSTNAME'] ?? $this->config['database']['hostname'],
+            $_ENV['USERNAME'] ?? $this->config['database']['username'],
+            $_ENV['PASSWORD'] ?? $this->config['database']['password'],
+            $_ENV['DATABASE'] ?? $this->config['database']['database']
         );
     }
 
     /**
-     * Sends a special response to the client.
+     * Validates the default configuration parameters' name and/or type.
+     * 
+     * @throws \InvalidArgumentException
+     */
+    protected function validateConfig(): void
+    {
+        if (empty($this->config)) {
+            throw new \InvalidArgumentException("Missing configuration ", 500);
+        }
+        $valid_parameters = [
+            'env' => ['relative_path'],
+            'database' => ['hostname', 'username', 'password', 'database'],
+            'compiler' => ['views_path', 'cache_path'],
+            'app' => ['production', 'routes']
+        ];
+        foreach ($valid_parameters as $parameter => $options) {
+            if(!isset($this->config[$parameter]) || !is_array($this->config[$parameter])) {
+                throw new \InvalidArgumentException("Missing/Invalid parameter \"$parameter\"", 500);
+            }
+            foreach ($options as $option) {
+                if (!isset($this->config[$parameter][$option])) {
+                    throw new \InvalidArgumentException("Missing/Invalid option \"$option\"", 500);
+                }
+            }
+        }
+    }
+
+    /** Initializes the necessary classes for the request handling. */
+    public function loadClasses(): void
+    {
+        $this->request = new Request();
+        $this->router = new Router($this->config['app']['routes']);
+
+        $this->response = $this->router->resolveRoute($this->request);
+        $this->response->sendResponse();
+    }
+
+    /**
+     * Depending on the production parameter, supplies the client with 
+     * the available information on the occured issue.
      * 
      * @param \Exception|\Error $e Parent or child Exception|Error classes.
      */
-    protected function sendException(\Exception|\Error $e): void 
+    protected function sendException(\Exception|\Error $e): void
     {
-        if (($_ENV["PRODUCTION"] ?? $this->config['application']['production']) === true) {
-            // Render the default error page
-           view('exceptions/status', [
-                'status' => $e->getCode() !== 0 ? $e->getCode() : 'Undefined',
-                'message' => $e->getMessage()
-            ], true)->send();
-        } else {
-            // Render the debug error page
-            view('exceptions/debug', [
+        if (($_ENV["PRODUCTION"] ?? $this->config['app']['production']) === 'false') {
+            view('debug', [
                 'class' => get_class($e),
                 'status' => $e->getCode() !== 0 ? $e->getCode() : 'Undefined',
                 'message' => $e->getMessage(),
                 'line' => $e->getLine(),
                 'file' => $e->getFile(),
                 'trace' => $e->getTrace()
-            ], true)->send();
+            ])->sendResponse();
+        } else {
+            view('status', [
+                'status' => $e->getCode() !== 0 ? $e->getCode() : 'Undefined',
+                'message' => $e->getMessage()
+            ])->sendResponse(); 
         }
     }
 }

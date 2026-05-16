@@ -2,140 +2,164 @@
 
 namespace Core;
 
-use Throwable;
+use Core\Route;
 
 /**
- * Validates a request and wires the necessary classes dealing with it.
+ * Resolves a request and wires the necessary classes dealing with it.
  * 
- * The purpose of Router is to decide whether a request is valid
- * or invalid by comparing an incoming request to the existing routes.
+ * First of all, Core\Router makes sure a route is existant. Otherwise, the 
+ * 404 error is thrown. In the current setup, two route types are available:
+ * 
+ * * Static routes: classic routes without parameters
+ * * Dynamic routes: modern routes with parameters
+ * 
+ * Once the resolution is finished, Core\Router is checking whether a route
+ * has any middlewares to be applied before dispatching. Once again, there's
+ * two options:
+ * 
+ * * In case at least one middleware is present, filter the request
+ * * In case no middleware is present, pursue directly with dispatching
+ * 
+ * Finally, the last step is to apply a specified controller, whether it
+ * is defined or anonymous, Core\Router is intended to handle both with or
+ * not dynamic parameter passing.
  */
 class Router
 {
     /**
      * Holds the predefined routes.
      * 
-     * @see /config/routes.php
+     * It is possible to specify dublicated routes, however
+     * in case Core\Router->resolve() matches a route, only
+     * the first of the dublicated routes will be applied.
+     * 
+     * @see routes()
      */
-    public array $routes;
+    protected array $routes;
+
+    /** 
+     * Holds the route's controller class.
+     * 
+     * @property array|callable $controller 
+     *           Accepts a defined or an anonymous controller.
+     */
+    public $controller;
 
     /**
-     * Assigns an array with the routes to the $routes property.
+     * Holds the route's controller action.
      * 
-     * In order to improve perfomance, it is more convinient to group
-     * the routes by their method specified in the instance's property.
-     * 
-     * @see \Core\Route
+     * Note that an anonymous controller cannot have an action.
      */
-    public function __construct() 
+    public string $action;
+
+    /**
+     * Assigns the predefined routes.
+     * 
+     * For performance reasons, it is more efficient to group
+     * the routes by their method.
+     * 
+     * @throws \LogicException
+     */
+    public function __construct(array $routes) 
     {
+        // Validate routes
+        if (empty($routes)) {
+            $type = gettype($routes) . '(' . count($routes). ')';
+            throw new \LogicException("Missing routes \"$type\"", 500);
+        }
         // Sort routes according to their method
-        foreach (routes() as $route) {
+        foreach ($routes as $route) {
+            if (!($route instanceof Route)) {
+                throw new \LogicException("Unsupported route \"$route\"", 500);
+            }
             $this->routes[$route->method][] = $route;
         }
     }
 
     /** 
-     * Analyzes an incoming request.
+     * Resolves an incoming request.
      * 
-     * This method is used to compare an incoming request and already
-     * defined static or dynamic routes.
+     * This method is used to compare an incoming request with the
+     * predefined routes.
+     * 
+     * @throws \RuntimeException
      */
-    public function resolve(Request $request): Response
+    public function resolveRoute(Request $request): Response
     {
         // Make sure the requested route exists
         foreach ($this->routes[$request->method] as $route) {
-            // Identify the route type
-            if (preg_match('~\{[^/]+\}~', $route->url)) {
-                $regular_url = preg_replace(
-                    '~\{[^/]+\}~',
-                    '([^/]+)',
-                    $route->url
-                );
-                $regular_pattern = "~^$regular_url$~";
-                // Compare the request and the dynamic route
-                if (
-                    preg_match($regular_pattern, $request->url, $matches)
-                ) {
-                    array_shift($matches);
-                    $request->dynamic = $matches;
-                    return self::process($request, $route);
-                }
+            // Compare the request and the static route
+            if (
+                $route->method === $request->method
+                && $route->url === $request->url
+            ) {
+                return $this->processRoute($request, $route);
             } else {
-                // Compare the request and the static route
-                if (
-                    $route->method === $request->method
-                    && $route->url === $request->url
-                ) {
-                    return self::process($request, $route);
+                // Identify the route type
+                if (preg_match('~\{[^/]+\}~', $route->url)) {
+                    $regular_url = preg_replace(
+                        '~\{[^/]+\}~',
+                        '([^/]+)',
+                        $route->url
+                    );
+                    $regular_pattern = "~^$regular_url$~";
+                    // Compare the request and the dynamic route
+                    if (
+                        preg_match($regular_pattern, $request->url, $matches)
+                    ) {
+                        array_shift($matches);
+                        $request->dynamic = $matches;
+                        return $this->processRoute($request, $route);
+                    }
                 }
             }
         }
         // In case requested url doesn't exist
-        throw new \RuntimeException('Not found', 404);
+        throw new \RuntimeException('Resource not found', 404);
     }
     
     /**
-     * Processes an incoming request.
+     * Processes the matched route.
      * 
      * This method checks if a middleware is associated to the route, 
-     * deciding whether to process() or to dispatch() current request.
+     * deciding whether to process() or to dispatch() the current request.
      */
-    protected static function process(
+    protected function processRoute(
         Request $request,
-        Route $route
+        Route $route,
     ): Response {
         // Check for a middleware
         if (!empty($route->middlewares)) {
-            return self::filter($request, $route);
+            return $this->handleMiddleware($request, $route);
         }
-        // In case no middleware is defined
-        if (is_string($route->controller)) {
-            // Use a defined controller
-            return self::dispatch(
-                $request,
-                $route->controller,
-                $route->action
-            );
-        }
-        // Use anonymous controller
-        return ($route->controller)($request);
+        return $this->dispatchRoute($request, $route);
     }
 
     /**
      * Filters an incoming request.
      * 
      * This method applies a chain of middleware classes so as to filter
-     * the request for potentially harmful infomation. Once finished,
-     * it calls the dispatch method which passes a theoretically safe
-     * request to the associated controller.
+     * the request for potentially invalid data. Once finished, it calls 
+     * the dispatch method which passes a theoretically safe request to 
+     * the associated controller.
      */
-    protected static function filter(
+    protected function handleMiddleware(
         Request $request,
         Route $route
     ): Response {
-        // Define the Final Closure
-        $next = function($request) use ($route): Response {
-            if (is_string($route->controller)) {
-                // Use a defined controller
-                return self::dispatch(
-                    $request,
-                    $route->controller,
-                    $route->action
-                );
-            }
-            // Use an anonymous controller
-            return ($route->controller)($request, ...$request->dynamic);
+        // Define the final closure
+        $next = function(Request $request) use ($route): Response {
+            return $this->dispatchRoute($request, $route);
         };
         // Define the Middleware chain
-        foreach (array_reverse($route->middlewares, true) as $middleware => $parameters) {
+        foreach (array_reverse($route->middlewares) as $middleware => $parameters) {
             // Define the chain
-            $Middleware = new $middleware;
-            $next = function($request) use ($Middleware, $next, $parameters) {
+            $Middleware = new $middleware();
+            $next = function(Request $request) use ($Middleware, $next, $parameters) {
                 return $Middleware->filter($request, $next, ...$parameters);
             };
         }
-        // Call the Final closure
+        // Call the chain and the final closure
         return $next($request);
     }
     
@@ -146,13 +170,19 @@ class Router
      * controller and its method. The output is then sent to the initial 
      * caller, in this case Kernel.
      */
-    protected static function dispatch(
+    protected function dispatchRoute(
         Request $request,
-        string $controller,
-        string $action
+        Route $route
     ): Response {
-        // Render the corresponding view
-        $controller = new $controller;
-        return $controller->$action($request, ...$request->dynamic);
+        // Use a defined controller
+        if (is_string($route->controller)) {
+            // Render the corresponding view
+            $this->controller = new ($route->controller)();
+            $this->action = $action = $route->action;
+            return $this->controller->$action($request, ...$request->dynamic);
+        }
+        // Use anonymous controller
+        $this->controller = $route->controller;
+        return ($this->controller)($request, ...$request->dynamic);
     }
 }

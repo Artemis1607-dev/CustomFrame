@@ -1,38 +1,21 @@
 <?php
 
 /**
- * Defines the application's routes.
+ * This file holds the application's routes.
  * 
- * This array is then required by a helper function 
- * to Router for the validation of the request.
- * 
- * @see /boot/helpers.php
- * @see \Core\Router
+ * Note that the following array is then required by
+ * Core\Router for the request URL validation. Be free
+ * to check Core\Route to find out on the available
+ * route features.
  */
 
-use App\Middlewares\AuthMiddleware;
-use App\Middlewares\SessionMiddleware;
+use App\Controllers\Controller;
+use Core\Request;
 use Core\Route;
-use App\Controllers\{AuthController, HomeController};
 
 return [
-    Route::get('/login', [AuthController::class => 'login']),
-    Route::post('/login/signin', [AuthController::class => 'signin']),
-    Route::post('/login/signup', [AuthController::class => 'signup']),
-    Route::patch('/login/reset', [AuthController::class => 'reset']),
-    
-    Route::get('/home/guest', [HomeController::class => 'guest']),
-    Route::get('/home/user', [HomeController::class => 'user'])
-    ->middleware(SessionMiddleware::class, AuthMiddleware::class.':user'),
-    Route::get('/home/admin', [HomeController::class => 'admin'])
-    ->middleware(SessionMiddleware::class, AuthMiddleware::class.':admin'),
-    
-    // Database & Dynamic route testing
-    Route::get('/test/{test}', function($request, $first) {
-        // Interaction with View
-        return view('home', [
-            'dynamic' => $first,
-            'title' => 'Dynamic route',
-        ]);
-    })->middleware(SessionMiddleware::class.':admin'),
+    Route::get('/', [Controller::class => 'foo']),
+    Route::get('/{dynamic}', function(Request $request, string $dynamic) {
+        return view('foo', ['foo' => $dynamic]);
+    })
 ];
